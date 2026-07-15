@@ -629,6 +629,9 @@
   const { Engine, World, Bodies, Body, Events, Composite } = Matter;
   const engine = Engine.create();
   engine.gravity.y = save.gravity;
+  // 提高求解迭代次數，減少小彈珠高速穿過釘子的「穿模」問題
+  engine.positionIterations = 12;
+  engine.velocityIterations = 12;
 
   const CANVAS_W = 360, CANVAS_H = 520;
   const canvas = document.getElementById('board');
@@ -644,7 +647,7 @@
   ]);
 
   // 釘板（交錯蜂巢式）
-  const PIN_RADIUS = 4;
+  const PIN_RADIUS = 5;
   const PIN_SPACING = 32;
   const PIN_ROWS = 12;
   const PIN_TOP = 60;
@@ -1141,8 +1144,19 @@
   });
 
   // ---------- 主迴圈 ----------
+  const PHYSICS_SUBSTEPS = 4; // 用更小的時間步分次計算物理，避免高速小彈珠穿過釘子
+  const MAX_BALL_SPEED = 14; // 限制最高速度，進一步降低穿模風險
   function loop() {
-    Engine.update(engine, 1000 / 60);
+    for (let s = 0; s < PHYSICS_SUBSTEPS; s++) {
+      Engine.update(engine, (1000 / 60) / PHYSICS_SUBSTEPS);
+      balls.forEach(b => {
+        const speed = Math.hypot(b.velocity.x, b.velocity.y);
+        if (speed > MAX_BALL_SPEED) {
+          const scale = MAX_BALL_SPEED / speed;
+          Body.setVelocity(b, { x: b.velocity.x * scale, y: b.velocity.y * scale });
+        }
+      });
+    }
 
     // 回收出界彈珠（未入洞 = 0 分）
     for (let i = balls.length - 1; i >= 0; i--) {
