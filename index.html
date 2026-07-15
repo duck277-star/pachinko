@@ -18,6 +18,7 @@
     --gold: #ffcc4d;
     --orange: #ff8c42;
     --text-color: #fff;
+    --score-color: #4dd8ff;
   }
   html[data-theme="retro"] {
     --purple-dark: #2b0a0a;
@@ -25,6 +26,7 @@
     --gold: #ffd166;
     --orange: #ff4d4d;
     --text-color: #fff;
+    --score-color: #7cf29c;
   }
   html[data-theme="day"] {
     --purple-dark: #fff8e7;
@@ -32,6 +34,7 @@
     --gold: #b8860b;
     --orange: #d2691e;
     --text-color: #2a1245;
+    --score-color: #0077b6;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -41,6 +44,7 @@
     font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+    overflow-x: hidden;
   }
   #app {
     max-width: 420px;
@@ -49,6 +53,9 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transform: scale(var(--ui-scale, 1));
+    transform-origin: top center;
+    transition: transform 0.2s ease;
   }
   h1 {
     text-align: center;
@@ -66,9 +73,26 @@
     padding: 10px 14px;
     border: 2px solid var(--gold);
   }
-  .score-item { text-align: center; flex: 1; }
+  .score-item {
+    text-align: center;
+    flex: 1;
+    padding: 4px 6px;
+    border-radius: 10px;
+  }
+  #scoreboard .score-item:first-child { border: 2px solid var(--gold); background: rgba(255,204,77,0.08); }
+  #scoreboard .score-item:last-child { border: 2px solid var(--score-color); background: rgba(77,216,255,0.08); }
   .score-label { font-size: 14px; color: #d8c4ff; }
-  .score-value { font-size: 32px; font-weight: bold; color: var(--gold); }
+  .score-value { font-size: 32px; font-weight: bold; color: var(--gold); display: inline-block; }
+  #sessionScoreValue { color: var(--score-color); }
+  .score-value.pulse { animation: scorePulse 0.4s ease; }
+  @keyframes scorePulse {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .score-value.pulse { animation: none; }
+  }
 
   /* 老虎機 */
   #slotMachine {
@@ -79,6 +103,13 @@
     border: 3px solid var(--gold);
     border-radius: 12px;
     padding: 10px;
+    transition: transform 0.35s ease, box-shadow 0.35s ease;
+  }
+  #slotMachine.focus {
+    transform: scale(1.18);
+    box-shadow: 0 0 40px 12px rgba(255, 204, 77, 0.7);
+    position: relative;
+    z-index: 30;
   }
   .reel {
     width: 64px;
@@ -106,8 +137,13 @@
     display: block;
     width: 100%;
     background: #241041;
+    transition: filter 0.35s ease;
   }
   #boardWrap.fever { box-shadow: 0 0 30px 6px var(--orange); }
+  #boardWrap.dim canvas { filter: brightness(0.35) saturate(0.7); }
+  @media (prefers-reduced-motion: reduce) {
+    canvas { transition: none; }
+  }
 
   /* 訊息列 */
   #messageBar {
@@ -432,6 +468,15 @@
       </div>
     </div>
     <div class="settingRow">
+      <span>縮放</span>
+      <div class="btnRow">
+        <button class="toggleBtn" data-scale="small">小</button>
+        <button class="toggleBtn" data-scale="normal">中</button>
+        <button class="toggleBtn" data-scale="large">大</button>
+        <button class="toggleBtn" data-scale="xl">特大</button>
+      </div>
+    </div>
+    <div class="settingRow">
       <span>音量</span>
       <input type="range" id="volumeSlider" min="0" max="100" value="70">
       <span id="volumeValue">70</span>
@@ -509,10 +554,19 @@
       maliPlays: 0,
       masterVolume: 70,
       nickname: '',
-      theme: 'classic'
+      theme: 'classic',
+      uiScale: null
     };
   }
-  let save = Object.assign(defaultSave(), loadSave() || {});
+  const existingSave = loadSave();
+  let save = Object.assign(defaultSave(), existingSave || {});
+  if (!existingSave) {
+    // 首次開啟：依螢幕寬度自動選擇合適的畫面縮放，桌機大螢幕預設放大填滿版面
+    if (window.innerWidth >= 1200) save.uiScale = 'xl';
+    else if (window.innerWidth >= 860) save.uiScale = 'large';
+    else save.uiScale = 'normal';
+  }
+  if (!save.uiScale) save.uiScale = 'normal';
 
   function persist() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
@@ -593,8 +647,18 @@
   const volumeValueEl = document.getElementById('volumeValue');
   const nicknameInput = document.getElementById('nicknameInput');
   const themeBtns = Array.from(document.querySelectorAll('[data-theme]'));
+  const scaleBtns = Array.from(document.querySelectorAll('[data-scale]'));
 
+  let lastChips = gameState.chips;
+  let lastSessionScore = gameState.sessionScore;
+  function pulseValue(el) {
+    el.classList.remove('pulse');
+    void el.offsetWidth; // 強制 reflow，讓動畫可以重新觸發
+    el.classList.add('pulse');
+  }
   function updateHud() {
+    if (gameState.chips !== lastChips) { pulseValue(chipsValueEl); lastChips = gameState.chips; }
+    if (gameState.sessionScore !== lastSessionScore) { pulseValue(sessionScoreValueEl); lastSessionScore = gameState.sessionScore; }
     chipsValueEl.textContent = gameState.chips;
     sessionScoreValueEl.textContent = gameState.sessionScore;
     statTotalScore.textContent = save.totalScore;
@@ -880,6 +944,8 @@
     if (slotSpinning) return;
     slotSpinning = true;
     slotMachineEl.classList.add('spinning');
+    slotMachineEl.classList.add('focus');
+    boardWrap.classList.add('dim');
 
     const forceWin = gameState.missStreak >= 40;
     let result;
@@ -944,6 +1010,10 @@
             showMessage('可惜，再試一次！');
           }
           checkAchievements();
+          setTimeout(() => {
+            slotMachineEl.classList.remove('focus');
+            boardWrap.classList.remove('dim');
+          }, 500);
         }
       }, stopDelays[i]);
     });
@@ -1127,6 +1197,11 @@
     gravityBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.gravity) === save.gravity));
     fontBtns.forEach(b => b.classList.toggle('active', b.dataset.font === save.fontSize));
     themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === save.theme));
+    scaleBtns.forEach(b => b.classList.toggle('active', b.dataset.scale === save.uiScale));
+  }
+  const UI_SCALES = { small: 0.85, normal: 1, large: 1.25, xl: 1.5 };
+  function applyUiScale() {
+    document.documentElement.style.setProperty('--ui-scale', UI_SCALES[save.uiScale] || 1);
   }
   gravityBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1153,8 +1228,17 @@
       persist();
     });
   });
+  scaleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      save.uiScale = btn.dataset.scale;
+      applyUiScale();
+      syncSettingButtons();
+      persist();
+    });
+  });
   appEl.classList.toggle('fontXL', save.fontSize === 'xl');
   document.documentElement.setAttribute('data-theme', save.theme);
+  applyUiScale();
   syncSettingButtons();
 
   // ---------- 音量滑桿 ----------
@@ -1292,11 +1376,14 @@
     confirmOverlay.classList.remove('show');
     save = defaultSave();
     save.lastLoginDate = todayStr();
+    save.uiScale = 'normal';
     persist();
     gameState.chips = save.chips;
     gameState.sessionScore = 0;
     gameState.feverCount = 0;
     gameState.missStreak = 0;
+    lastChips = gameState.chips;
+    lastSessionScore = gameState.sessionScore;
     if (gameState.isFever) endFever();
     if (gameState.musicOn) { gameState.musicOn = false; stopMusic(); updateMusicBtn(); }
     particles = [];
@@ -1307,6 +1394,7 @@
     volumeValueEl.textContent = save.masterVolume;
     if (masterGainNode) masterGainNode.gain.value = save.masterVolume / 100;
     document.documentElement.setAttribute('data-theme', save.theme);
+    applyUiScale();
     syncSettingButtons();
     updateHud();
     showMessage(buildGreeting());
