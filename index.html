@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>柏青哥 Pachinko — 長輩休閒版</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#2a1245">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <style>
   :root {
@@ -172,6 +178,95 @@
     font-weight: bold;
   }
 
+  #xiaoMaliBtn {
+    width: 100%;
+    height: 52px;
+    font-size: 17px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: 2px solid var(--gold);
+    background: linear-gradient(180deg, #ff6b9d, #c92a5b);
+    color: #fff;
+    cursor: pointer;
+  }
+  #xiaoMaliBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* 成就面板 */
+  #achievePanel {
+    background: var(--purple-mid);
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 12px;
+    display: none;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  #achievePanel.show { display: block; }
+  .achieveItem { opacity: 0.4; }
+  .achieveItem.unlocked { opacity: 1; color: var(--gold); }
+
+  /* 成就解鎖 Toast */
+  #achieveToast {
+    position: fixed;
+    top: 16px; left: 50%;
+    transform: translateX(-50%) translateY(-40px);
+    background: linear-gradient(180deg, var(--gold), var(--orange));
+    color: #2a1245;
+    font-weight: bold;
+    padding: 10px 18px;
+    border-radius: 10px;
+    z-index: 60;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+    max-width: 90%;
+    text-align: center;
+  }
+  #achieveToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 小瑪莉水果盤 Modal */
+  #xiaoMaliOverlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    align-items: center; justify-content: center;
+    z-index: 55;
+  }
+  #xiaoMaliOverlay.show { display: flex; }
+  #xiaoMaliBox {
+    background: var(--purple-mid);
+    border: 3px solid var(--gold);
+    border-radius: 14px;
+    padding: 20px;
+    max-width: 340px;
+    text-align: center;
+  }
+  #xiaoMaliBox h2 { color: var(--gold); margin: 0 0 12px; font-size: 20px; }
+  #maliGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .maliCell {
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1a0a2e;
+    border: 2px solid #6a4fa0;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: bold;
+  }
+  .maliCell.center { background: #3d1a63; }
+  .maliCell.lit { border-color: var(--gold); background: var(--orange); color: #2a1245; }
+  #maliResult { min-height: 26px; font-size: 18px; color: var(--gold); font-weight: bold; margin-bottom: 12px; }
+  @media (prefers-reduced-motion: reduce) {
+    #achieveToast { transition: none; }
+  }
+
   /* 字體大小：特大模式 */
   #app.fontXL .score-value { font-size: 40px; }
   #app.fontXL .score-label { font-size: 17px; }
@@ -180,6 +275,8 @@
   #app.fontXL .smallBtn, #app.fontXL .toggleBtn { font-size: 18px; height: 54px; }
   #app.fontXL #powerRow label, #app.fontXL #powerValue { font-size: 20px; }
   #app.fontXL #statsPanel, #app.fontXL .settingRow > span:first-child { font-size: 18px; }
+  #app.fontXL #xiaoMaliBtn { font-size: 19px; height: 58px; }
+  #app.fontXL #achievePanel { font-size: 17px; }
 
   /* 二次確認 Modal */
   #confirmOverlay {
@@ -265,6 +362,11 @@
       <button class="smallBtn" id="settingsBtn">⚙️ 設定</button>
       <button class="smallBtn" id="resetBtn">🔄 重新開始</button>
     </div>
+    <div class="btnRow">
+      <button class="smallBtn" id="musicBtn">🎵 音樂</button>
+      <button class="smallBtn" id="achieveBtn">🏆 成就</button>
+    </div>
+    <button id="xiaoMaliBtn">🍓 小瑪莉水果盤（20 籌碼）</button>
   </div>
 
   <div id="statsPanel">
@@ -272,6 +374,8 @@
     <div>歷史 Fever 次數：<b id="statTotalFever">0</b></div>
     <div>歷史發射彈珠數：<b id="statTotalBalls">0</b></div>
   </div>
+
+  <div id="achievePanel"></div>
 
   <div id="settingsPanel">
     <div class="settingRow">
@@ -302,6 +406,29 @@
   </div>
 </div>
 
+<div id="xiaoMaliOverlay">
+  <div id="xiaoMaliBox">
+    <h2>🍓 小瑪莉水果盤</h2>
+    <div id="maliGrid">
+      <div class="maliCell" data-idx="0">30</div>
+      <div class="maliCell" data-idx="1">50</div>
+      <div class="maliCell" data-idx="2">100</div>
+      <div class="maliCell" data-idx="3">20</div>
+      <div class="maliCell center" data-idx="4">🍓</div>
+      <div class="maliCell" data-idx="5">80</div>
+      <div class="maliCell" data-idx="6">80</div>
+      <div class="maliCell" data-idx="7">50</div>
+      <div class="maliCell" data-idx="8">200</div>
+    </div>
+    <div id="maliResult">燈號跑動中，看它停在哪一格！</div>
+    <div class="btnRow">
+      <button class="smallBtn" id="maliCloseBtn">關閉</button>
+    </div>
+  </div>
+</div>
+
+<div id="achieveToast"></div>
+
 <script>
 (function () {
   'use strict';
@@ -325,10 +452,14 @@
       totalScore: 0,
       totalFever: 0,
       totalBalls: 0,
+      totalHoles: 0,
       soundOn: true,
+      musicOn: false,
       gravity: 1.6,
       fontSize: 'normal',
-      lastLoginDate: null
+      lastLoginDate: null,
+      achievements: {},
+      maliPlays: 0
     };
   }
   let save = Object.assign(defaultSave(), loadSave() || {});
@@ -356,6 +487,7 @@
     feverEndTime: null,
     missStreak: 0,
     soundOn: save.soundOn,
+    musicOn: save.musicOn,
   };
 
   // ---------- DOM ----------
@@ -384,6 +516,15 @@
   const appEl = document.getElementById('app');
   const gravityBtns = Array.from(document.querySelectorAll('[data-gravity]'));
   const fontBtns = Array.from(document.querySelectorAll('[data-font]'));
+  const musicBtn = document.getElementById('musicBtn');
+  const achieveBtn = document.getElementById('achieveBtn');
+  const achievePanel = document.getElementById('achievePanel');
+  const achieveToast = document.getElementById('achieveToast');
+  const xiaoMaliBtn = document.getElementById('xiaoMaliBtn');
+  const xiaoMaliOverlay = document.getElementById('xiaoMaliOverlay');
+  const maliCloseBtn = document.getElementById('maliCloseBtn');
+  const maliResult = document.getElementById('maliResult');
+  const maliCells = Array.from(document.querySelectorAll('.maliCell'));
 
   function updateHud() {
     chipsValueEl.textContent = gameState.chips;
@@ -426,6 +567,10 @@
   function sfxMiss() { tone(330, 0, 0.12, 'sawtooth', 0.06); }
   function sfxFeverStart() { tone(523, 0, 0.15, 'square'); tone(659, 0.1, 0.15, 'square'); tone(784, 0.2, 0.15, 'square'); tone(1047, 0.3, 0.3, 'square'); }
   function sfxRefill() { tone(880, 0, 0.1, 'sine'); tone(1100, 0.1, 0.15, 'sine'); }
+  function sfxSmallWin() { tone(659, 0, 0.1, 'triangle'); tone(880, 0.1, 0.12, 'triangle'); tone(1047, 0.2, 0.18, 'triangle'); }
+  function sfxAchieve() { tone(880, 0, 0.1, 'sine'); tone(1175, 0.1, 0.1, 'sine'); tone(1568, 0.2, 0.25, 'sine'); }
+  function sfxMaliTick() { tone(600, 0, 0.04, 'square', 0.06); }
+  function sfxMaliWin() { tone(523, 0, 0.1, 'triangle'); tone(659, 0.1, 0.1, 'triangle'); tone(784, 0.2, 0.1, 'triangle'); tone(1047, 0.3, 0.25, 'triangle'); }
 
   soundBtn.addEventListener('click', () => {
     gameState.soundOn = !gameState.soundOn;
@@ -434,6 +579,51 @@
     persist();
   });
   soundBtn.textContent = gameState.soundOn ? '🔊 音效' : '🔇 靜音';
+
+  // ---------- 背景音樂（Web Audio 循環合成） ----------
+  const MUSIC_NOTES = [523, 659, 784, 659, 587, 698, 880, 698];
+  let musicTimer = null;
+  let musicStep = 0;
+  function playMusicStep() {
+    if (!gameState.musicOn) return;
+    const c = ctx();
+    const freq = MUSIC_NOTES[musicStep % MUSIC_NOTES.length];
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.05;
+    osc.connect(gain).connect(c.destination);
+    const t0 = c.currentTime;
+    osc.start(t0);
+    gain.gain.setValueAtTime(0.05, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.55);
+    osc.stop(t0 + 0.6);
+    musicStep++;
+  }
+  function startMusic() {
+    if (musicTimer) return;
+    musicTimer = setInterval(playMusicStep, 600);
+  }
+  function stopMusic() {
+    if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+  }
+  function updateMusicBtn() {
+    musicBtn.textContent = gameState.musicOn ? '🎵 音樂中' : '🎵 音樂';
+  }
+  musicBtn.addEventListener('click', () => {
+    gameState.musicOn = !gameState.musicOn;
+    save.musicOn = gameState.musicOn;
+    updateMusicBtn();
+    persist();
+    if (gameState.musicOn) { ctx().resume && ctx().resume(); startMusic(); }
+    else stopMusic();
+  });
+  updateMusicBtn();
+  if (gameState.musicOn) startMusic();
+  document.addEventListener('pointerdown', () => {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }, { once: true });
 
   // ---------- Matter.js 物理設定 ----------
   const { Engine, World, Bodies, Body, Events, Composite } = Matter;
@@ -503,6 +693,8 @@
   const balls = [];
   const BALL_RADIUS = 8;
   const BALL_COLORS = ['#ff6b6b', '#feca57', '#48dbfb', '#1dd1a1', '#ff9ff3', '#f6e58d'];
+  const TRAIL_LENGTH = 10;
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function spawnBall(power) {
     const spawnX = 340 - (power / 100) * 260 + (Math.random() * 10 - 5);
@@ -515,6 +707,7 @@
     ball.scored = false;
     ball.spawnTime = Date.now();
     ball.color = BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)];
+    ball.trail = [];
     Body.setVelocity(ball, { x: (Math.random() * 1.2 - 0.6), y: 2 });
     World.add(world, ball);
     balls.push(ball);
@@ -531,21 +724,39 @@
   const SYMBOLS = ['7️⃣', '🍒', '🍋', '⭐', '🔔', '🍇', '💎'];
   let slotSpinning = false;
 
+  function countSymbol(arr, sym) { return arr.filter(s => s === sym).length; }
+  function isSpecialPattern(arr) {
+    return countSymbol(arr, '7️⃣') === 3 || countSymbol(arr, '🍒') === 3 || countSymbol(arr, '7️⃣') === 2;
+  }
+  function randomResult() {
+    let r = [0, 0, 0].map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
+    let guard = 0;
+    while (isSpecialPattern(r) && guard++ < 20) {
+      r = [0, 0, 0].map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
+    }
+    return r;
+  }
+
   function spinSlot(winProb) {
     if (slotSpinning) return;
     slotSpinning = true;
     slotMachineEl.classList.add('spinning');
 
-    let forceWin = gameState.missStreak >= 40;
-    let win = forceWin || Math.random() < winProb;
-
+    const forceWin = gameState.missStreak >= 40;
     let result;
-    if (win) {
+    if (forceWin || Math.random() < winProb) {
       result = ['7️⃣', '7️⃣', '7️⃣'];
     } else {
-      result = [0, 0, 0].map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
-      if (result[0] === result[1] && result[1] === result[2]) {
-        result[2] = SYMBOLS[(SYMBOLS.indexOf(result[2]) + 1) % SYMBOLS.length];
+      const r = Math.random();
+      if (r < 0.05) {
+        result = ['🍒', '🍒', '🍒'];
+      } else if (r < 0.12) {
+        const nonSeven = SYMBOLS.slice(1);
+        const other = nonSeven[Math.floor(Math.random() * nonSeven.length)];
+        result = ['7️⃣', '7️⃣', '7️⃣'];
+        result[Math.floor(Math.random() * 3)] = other;
+      } else {
+        result = randomResult();
       }
     }
 
@@ -564,16 +775,35 @@
         if (i === reelEls.length - 1) {
           slotSpinning = false;
           slotMachineEl.classList.remove('spinning');
-          if (win) {
+          const sevenCount = countSymbol(result, '7️⃣');
+          const cherryCount = countSymbol(result, '🍒');
+          if (sevenCount === 3) {
             gameState.missStreak = 0;
             sfx777();
             showMessage('🎉 777 中獎！進入 FEVER！');
             startFever();
+          } else if (cherryCount === 3) {
+            gameState.missStreak++;
+            gameState.chips += 100;
+            save.chips = gameState.chips;
+            sfxSmallWin();
+            showMessage('🍒🍒🍒 櫻桃連線！+100 籌碼');
+            updateHud();
+            persist();
+          } else if (sevenCount === 2) {
+            gameState.missStreak++;
+            gameState.chips += 50;
+            save.chips = gameState.chips;
+            sfxSmallWin();
+            showMessage('7️⃣7️⃣ 雙 7 小獎！+50 籌碼');
+            updateHud();
+            persist();
           } else {
             gameState.missStreak++;
             sfxMiss();
             showMessage('可惜，再試一次！');
           }
+          checkAchievements();
         }
       }, stopDelays[i]);
     });
@@ -616,6 +846,44 @@
     showMessage('Fever 結束，繼續加油！');
   }
 
+  // ---------- 成就系統 ----------
+  const ACHIEVEMENTS = [
+    { id: 'firstFever', icon: '🔥', name: '首次 Fever', desc: '第一次進入 Fever 模式', check: () => save.totalFever >= 1 },
+    { id: 'hundredHits', icon: '🎯', name: '百發百中', desc: '累計入洞達 100 次', check: () => save.totalHoles >= 100 },
+    { id: 'feverMaster', icon: '⚡', name: '電光石火', desc: '累計 Fever 達 10 次', check: () => save.totalFever >= 10 },
+    { id: 'richChips', icon: '💰', name: '籌碼大亨', desc: '籌碼達 5000', check: () => gameState.chips >= 5000 },
+    { id: 'maliFan', icon: '🍓', name: '水果盤達人', desc: '玩過 5 次小瑪莉', check: () => save.maliPlays >= 5 },
+  ];
+  let achieveToastTimer = null;
+  function unlockAchievement(a) {
+    sfxAchieve();
+    achieveToast.textContent = '🏆 達成成就：' + a.name;
+    achieveToast.classList.add('show');
+    if (achieveToastTimer) clearTimeout(achieveToastTimer);
+    achieveToastTimer = setTimeout(() => achieveToast.classList.remove('show'), 2500);
+  }
+  function renderAchievements() {
+    achievePanel.innerHTML = ACHIEVEMENTS.map(a => {
+      const unlocked = !!save.achievements[a.id];
+      return '<div class="achieveItem' + (unlocked ? ' unlocked' : '') + '">' + a.icon + ' ' + a.name + '：' + a.desc + (unlocked ? ' ✅' : ' 🔒') + '</div>';
+    }).join('');
+  }
+  function checkAchievements() {
+    let changed = false;
+    ACHIEVEMENTS.forEach(a => {
+      if (!save.achievements[a.id] && a.check()) {
+        save.achievements[a.id] = true;
+        unlockAchievement(a);
+        changed = true;
+      }
+    });
+    if (changed) { renderAchievements(); persist(); }
+  }
+  achieveBtn.addEventListener('click', () => {
+    achievePanel.classList.toggle('show');
+  });
+  renderAchievements();
+
   // ---------- 入洞處理 ----------
   const SCORE_TABLE = {
     'small-outer': { normal: 5, fever: 5 },
@@ -630,6 +898,7 @@
 
     gameState.sessionScore += score;
     save.totalScore += score;
+    save.totalHoles++;
 
     if (type === 'big') {
       sfxBigHole();
@@ -645,6 +914,7 @@
 
     updateHud();
     persist();
+    checkAchievements();
   }
 
   Events.on(engine, 'collisionStart', (event) => {
@@ -753,6 +1023,93 @@
     launchBtn.addEventListener(evt, stopAutoFire);
   });
 
+  // ---------- 小瑪莉水果盤（Phase 4 加值內容） ----------
+  const MALI_COST = 20;
+  // 3x3 格子索引，跳過中央第 4 格，依順時針排列成環
+  const MALI_RING = [0, 1, 2, 5, 8, 7, 6, 3];
+  const MALI_PRIZES = { 0: 30, 1: 50, 2: 100, 3: 20, 5: 80, 6: 80, 7: 50, 8: 200 };
+  let maliSpinning = false;
+
+  function pickMaliIndex() {
+    // 獎金越高機率越低，維持「無挫敗」設計：最低獎恰等於花費，不會淨損失
+    const weights = MALI_RING.map(idx => Math.max(1, 100 - MALI_PRIZES[idx]));
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < MALI_RING.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return MALI_RING[i];
+    }
+    return MALI_RING[0];
+  }
+
+  function openMali() {
+    if (maliSpinning) return;
+    if (gameState.chips < MALI_COST) {
+      checkAutoRefill();
+      if (gameState.chips < MALI_COST) return;
+    }
+    gameState.chips -= MALI_COST;
+    save.chips = gameState.chips;
+    save.maliPlays++;
+    updateHud();
+    persist();
+
+    maliCells.forEach(c => c.classList.remove('lit'));
+    maliResult.textContent = '燈號跑動中，看它停在哪一格！';
+    xiaoMaliOverlay.classList.add('show');
+    maliSpinning = true;
+
+    const targetIdx = pickMaliIndex();
+
+    function finishMali() {
+      maliCells.forEach(c => c.classList.remove('lit'));
+      const cellEl = maliCells.find(c => Number(c.dataset.idx) === targetIdx);
+      if (cellEl) cellEl.classList.add('lit');
+      maliSpinning = false;
+      const prize = MALI_PRIZES[targetIdx];
+      gameState.chips += prize;
+      save.chips = gameState.chips;
+      gameState.sessionScore += prize;
+      save.totalScore += prize;
+      updateHud();
+      persist();
+      sfxMaliWin();
+      maliResult.textContent = '🎉 停在 ' + prize + '！獲得 ' + prize + ' 籌碼';
+      checkAchievements();
+    }
+
+    if (reduceMotion) {
+      // 減少動態效果時直接顯示結果，不播放跑燈動畫
+      finishMali();
+      return;
+    }
+
+    const targetPos = MALI_RING.indexOf(targetIdx);
+    // 總共跑動的格數：至少繞 2 圈再停到目標格，速度逐漸變慢
+    const totalSteps = MALI_RING.length * 2 + targetPos + 1;
+    let step = 0;
+
+    function tick() {
+      if (step >= totalSteps) { finishMali(); return; }
+      maliCells.forEach(c => c.classList.remove('lit'));
+      const cellIdx = MALI_RING[step % MALI_RING.length];
+      const cellEl = maliCells.find(c => Number(c.dataset.idx) === cellIdx);
+      if (cellEl) cellEl.classList.add('lit');
+      sfxMaliTick();
+      step++;
+      const remain = totalSteps - step;
+      const delay = remain < 6 ? 70 + (6 - remain) * 60 : 70;
+      setTimeout(tick, delay);
+    }
+    tick();
+  }
+
+  xiaoMaliBtn.addEventListener('click', openMali);
+  maliCloseBtn.addEventListener('click', () => {
+    if (maliSpinning) return;
+    xiaoMaliOverlay.classList.remove('show');
+  });
+
   // ---------- 重新開始（二次確認） ----------
   resetBtn.addEventListener('click', () => {
     confirmOverlay.classList.add('show');
@@ -770,7 +1127,9 @@
     gameState.feverCount = 0;
     gameState.missStreak = 0;
     if (gameState.isFever) endFever();
+    if (gameState.musicOn) { gameState.musicOn = false; stopMusic(); updateMusicBtn(); }
     balls.slice().forEach(removeBall);
+    renderAchievements();
     updateHud();
     showMessage('已重新開始，繼續加油！');
   });
@@ -788,6 +1147,10 @@
     // 回收出界彈珠（未入洞 = 0 分）
     for (let i = balls.length - 1; i >= 0; i--) {
       const b = balls[i];
+      if (!reduceMotion) {
+        b.trail.push({ x: b.position.x, y: b.position.y });
+        if (b.trail.length > TRAIL_LENGTH) b.trail.shift();
+      }
       if (b.position.y > CANVAS_H + 20) {
         if (!b.scored) {
           showMessage('可惜，掉出去了，再接再厲！');
@@ -837,6 +1200,21 @@
       ctx2d.fillText(label, (minX + maxX) / 2, (minY + maxY) / 2 + 4);
     });
 
+    // 彈珠殘影軌跡
+    if (!reduceMotion) {
+      balls.forEach(b => {
+        b.trail.forEach((p, i) => {
+          const alpha = (i / b.trail.length) * 0.35;
+          ctx2d.beginPath();
+          ctx2d.arc(p.x, p.y, BALL_RADIUS * 0.7, 0, Math.PI * 2);
+          ctx2d.fillStyle = b.color;
+          ctx2d.globalAlpha = alpha;
+          ctx2d.fill();
+        });
+      });
+      ctx2d.globalAlpha = 1;
+    }
+
     // 彈珠
     balls.forEach(b => {
       ctx2d.beginPath();
@@ -853,6 +1231,13 @@
   }
 
   requestAnimationFrame(loop);
+
+  // ---------- PWA：註冊 Service Worker ----------
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
 })();
 </script>
 </body>

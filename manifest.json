@@ -1,0 +1,17 @@
+{
+  "name": "柏青哥 Pachinko — 長輩休閒版",
+  "short_name": "柏青哥",
+  "description": "無壓力、可無限遊玩的網頁柏青哥遊戲",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2a1245",
+  "theme_color": "#2a1245",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

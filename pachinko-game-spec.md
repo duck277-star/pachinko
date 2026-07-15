@@ -243,13 +243,13 @@ const gameState = {
 - [x] 連續發射模式（按住不放自動連發，減少重複點擊）
 - [x] `prefers-reduced-motion` 支援
 
-### Phase 4 — 加值內容（選配）
-- [ ] 更多老虎機連線（雙 7 小獎、🍒🍒🍒 中獎等）
-- [ ] 彈珠軌跡殘影特效
-- [ ] 背景音樂（Web Audio 循環合成或音檔）
-- [ ] 成就系統（「首次 Fever」「百發百中」等徽章）
-- [ ] PWA 化（加 manifest + service worker，可安裝到平板桌面）
-- [ ] 小瑪莉水果盤懷舊小遊戲模式（經典柏青哥店台灣在地水果盤玩法，作為額外遊玩模式或彩蛋，無儲值、純籌碼娛樂）
+### Phase 4 — 加值內容（已完成 ✅）
+- [x] 更多老虎機連線（雙 7 小獎 +50、🍒🍒🍒 中獎 +100 等）
+- [x] 彈珠軌跡殘影特效（尊重 `prefers-reduced-motion`）
+- [x] 背景音樂（Web Audio 循環合成，獨立於音效開關）
+- [x] 成就系統（首次 Fever、百發百中、電光石火、籌碼大亨、水果盤達人）
+- [x] PWA 化（manifest.json + sw.js + icon.svg，可安裝到平板桌面）
+- [x] 小瑪莉水果盤懷舊小遊戲模式（經典柏青哥店台灣在地水果盤玩法，20 籌碼／次，最低回饋等同花費，無淨損失）
 
 ---
 
@@ -278,11 +278,12 @@ const gameState = {
 
 ```
 pachinko/
-└── index.html    ← 全部程式碼（HTML + CSS + JS 內嵌）
-                     Matter.js 由 CDN 載入（cdnjs）
+├── index.html      ← 遊戲主體（HTML + CSS + JS 內嵌），Matter.js 由 CDN 載入（cdnjs）
+├── manifest.json    ← PWA 安裝設定（Phase 4）
+├── sw.js            ← Service Worker，離線快取（Phase 4）
+└── icon.svg         ← App 圖示（Phase 4）
 ```
 
-單檔設計的好處：
-- 傳給家人只需一個檔案（LINE 傳送即可）
-- 放上 GitHub Pages 即是完整網站
-- 無建置流程，直接編輯即改即玩
+設計理念：
+- 核心玩法仍是單一 `index.html`，傳給家人開啟即玩、放上 GitHub Pages 即是完整網站
+- Phase 4 加入 PWA 三個小檔案，讓長輩可以「加到主畫面」像 App 一樣使用，仍無建置流程
