@@ -142,6 +142,45 @@
   }
   #statsPanel.show { display: block; }
 
+  /* 設定面板 */
+  #settingsPanel {
+    background: var(--purple-mid);
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 12px;
+    display: none;
+    gap: 10px;
+    flex-direction: column;
+  }
+  #settingsPanel.show { display: flex; }
+  .settingRow { display: flex; align-items: center; gap: 10px; }
+  .settingRow > span:first-child { font-size: 16px; white-space: nowrap; width: 56px; }
+  .settingRow .btnRow { flex: 1; }
+  .toggleBtn {
+    flex: 1;
+    height: 44px;
+    font-size: 16px;
+    border-radius: 10px;
+    border: 2px solid var(--gold);
+    background: var(--purple-dark);
+    color: #fff;
+    cursor: pointer;
+  }
+  .toggleBtn.active {
+    background: linear-gradient(180deg, var(--gold), var(--orange));
+    color: #2a1245;
+    font-weight: bold;
+  }
+
+  /* 字體大小：特大模式 */
+  #app.fontXL .score-value { font-size: 40px; }
+  #app.fontXL .score-label { font-size: 17px; }
+  #app.fontXL #messageBar { font-size: 20px; }
+  #app.fontXL #launchBtn { font-size: 28px; height: 68px; }
+  #app.fontXL .smallBtn, #app.fontXL .toggleBtn { font-size: 18px; height: 54px; }
+  #app.fontXL #powerRow label, #app.fontXL #powerValue { font-size: 20px; }
+  #app.fontXL #statsPanel, #app.fontXL .settingRow > span:first-child { font-size: 18px; }
+
   /* 二次確認 Modal */
   #confirmOverlay {
     display: none;
@@ -217,10 +256,13 @@
       <input type="range" id="powerSlider" min="0" max="100" value="50">
       <span id="powerValue">50</span>
     </div>
-    <button id="launchBtn">🚀 發射（空白鍵）</button>
+    <button id="launchBtn">🚀 發射（按住可連發）</button>
     <div class="btnRow">
       <button class="smallBtn" id="soundBtn">🔊 音效</button>
       <button class="smallBtn" id="statsBtn">📊 統計</button>
+    </div>
+    <div class="btnRow">
+      <button class="smallBtn" id="settingsBtn">⚙️ 設定</button>
       <button class="smallBtn" id="resetBtn">🔄 重新開始</button>
     </div>
   </div>
@@ -229,6 +271,24 @@
     <div>歷史總得分：<b id="statTotalScore">0</b></div>
     <div>歷史 Fever 次數：<b id="statTotalFever">0</b></div>
     <div>歷史發射彈珠數：<b id="statTotalBalls">0</b></div>
+  </div>
+
+  <div id="settingsPanel">
+    <div class="settingRow">
+      <span>速度</span>
+      <div class="btnRow">
+        <button class="toggleBtn" data-gravity="1.2">慢</button>
+        <button class="toggleBtn" data-gravity="1.6">中</button>
+        <button class="toggleBtn" data-gravity="2.0">快</button>
+      </div>
+    </div>
+    <div class="settingRow">
+      <span>字體</span>
+      <div class="btnRow">
+        <button class="toggleBtn" data-font="normal">大</button>
+        <button class="toggleBtn" data-font="xl">特大</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -267,10 +327,11 @@
       totalBalls: 0,
       soundOn: true,
       gravity: 1.6,
+      fontSize: 'normal',
       lastLoginDate: null
     };
   }
-  let save = loadSave() || defaultSave();
+  let save = Object.assign(defaultSave(), loadSave() || {});
 
   function persist() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
@@ -318,6 +379,11 @@
   const statTotalScore = document.getElementById('statTotalScore');
   const statTotalFever = document.getElementById('statTotalFever');
   const statTotalBalls = document.getElementById('statTotalBalls');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const appEl = document.getElementById('app');
+  const gravityBtns = Array.from(document.querySelectorAll('[data-gravity]'));
+  const fontBtns = Array.from(document.querySelectorAll('[data-font]'));
 
   function updateHud() {
     chipsValueEl.textContent = gameState.chips;
@@ -637,6 +703,54 @@
   // ---------- 統計面板 ----------
   statsBtn.addEventListener('click', () => {
     statsPanel.classList.toggle('show');
+  });
+
+  // ---------- 設定面板：速度 / 字體 ----------
+  settingsBtn.addEventListener('click', () => {
+    settingsPanel.classList.toggle('show');
+  });
+
+  function syncSettingButtons() {
+    gravityBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.gravity) === save.gravity));
+    fontBtns.forEach(b => b.classList.toggle('active', b.dataset.font === save.fontSize));
+  }
+  gravityBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = Number(btn.dataset.gravity);
+      save.gravity = g;
+      engine.gravity.y = g;
+      syncSettingButtons();
+      persist();
+    });
+  });
+  fontBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      save.fontSize = btn.dataset.font;
+      appEl.classList.toggle('fontXL', save.fontSize === 'xl');
+      syncSettingButtons();
+      persist();
+    });
+  });
+  appEl.classList.toggle('fontXL', save.fontSize === 'xl');
+  syncSettingButtons();
+
+  // ---------- 連續發射模式（按住不放自動連發） ----------
+  const AUTO_FIRE_DELAY = 400;
+  const AUTO_FIRE_INTERVAL = 500;
+  let autoFireTimeout = null;
+  let autoFireInterval = null;
+  function stopAutoFire() {
+    if (autoFireTimeout) { clearTimeout(autoFireTimeout); autoFireTimeout = null; }
+    if (autoFireInterval) { clearInterval(autoFireInterval); autoFireInterval = null; }
+  }
+  launchBtn.addEventListener('pointerdown', () => {
+    stopAutoFire();
+    autoFireTimeout = setTimeout(() => {
+      autoFireInterval = setInterval(launchBall, AUTO_FIRE_INTERVAL);
+    }, AUTO_FIRE_DELAY);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
+    launchBtn.addEventListener(evt, stopAutoFire);
   });
 
   // ---------- 重新開始（二次確認） ----------
