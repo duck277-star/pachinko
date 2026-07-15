@@ -17,12 +17,27 @@
     --purple-mid: #3d1a63;
     --gold: #ffcc4d;
     --orange: #ff8c42;
+    --text-color: #fff;
+  }
+  html[data-theme="retro"] {
+    --purple-dark: #2b0a0a;
+    --purple-mid: #4a1414;
+    --gold: #ffd166;
+    --orange: #ff4d4d;
+    --text-color: #fff;
+  }
+  html[data-theme="day"] {
+    --purple-dark: #fff8e7;
+    --purple-mid: #fff1d6;
+    --gold: #b8860b;
+    --orange: #d2691e;
+    --text-color: #2a1245;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
     background: var(--purple-dark);
-    color: #fff;
+    color: var(--text-color);
     font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
@@ -132,7 +147,7 @@
     border-radius: 10px;
     border: 2px solid var(--gold);
     background: var(--purple-mid);
-    color: #fff;
+    color: var(--text-color);
     cursor: pointer;
   }
 
@@ -162,6 +177,19 @@
   .settingRow { display: flex; align-items: center; gap: 10px; }
   .settingRow > span:first-child { font-size: 16px; white-space: nowrap; width: 56px; }
   .settingRow .btnRow { flex: 1; }
+  #volumeSlider { flex: 1; height: 30px; }
+  #volumeValue { font-size: 18px; font-weight: bold; min-width: 34px; text-align: right; color: var(--gold); }
+  #nicknameInput {
+    flex: 1;
+    height: 44px;
+    font-size: 16px;
+    border-radius: 10px;
+    border: 2px solid var(--gold);
+    background: var(--purple-dark);
+    color: var(--text-color);
+    padding: 0 12px;
+  }
+  #nicknameInput::placeholder { color: #b9a3e0; }
   .toggleBtn {
     flex: 1;
     height: 44px;
@@ -169,7 +197,7 @@
     border-radius: 10px;
     border: 2px solid var(--gold);
     background: var(--purple-dark);
-    color: #fff;
+    color: var(--text-color);
     cursor: pointer;
   }
   .toggleBtn.active {
@@ -277,6 +305,8 @@
   #app.fontXL #statsPanel, #app.fontXL .settingRow > span:first-child { font-size: 18px; }
   #app.fontXL #xiaoMaliBtn { font-size: 19px; height: 58px; }
   #app.fontXL #achievePanel { font-size: 17px; }
+  #app.fontXL #nicknameInput { font-size: 18px; height: 50px; }
+  #app.fontXL #volumeValue { font-size: 20px; }
 
   /* 二次確認 Modal */
   #confirmOverlay {
@@ -393,6 +423,23 @@
         <button class="toggleBtn" data-font="xl">特大</button>
       </div>
     </div>
+    <div class="settingRow">
+      <span>配色</span>
+      <div class="btnRow">
+        <button class="toggleBtn" data-theme="classic">經典</button>
+        <button class="toggleBtn" data-theme="retro">復古紅</button>
+        <button class="toggleBtn" data-theme="day">明亮</button>
+      </div>
+    </div>
+    <div class="settingRow">
+      <span>音量</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="70">
+      <span id="volumeValue">70</span>
+    </div>
+    <div class="settingRow">
+      <span>暱稱</span>
+      <input type="text" id="nicknameInput" maxlength="10" placeholder="輸入暱稱（選填）">
+    </div>
   </div>
 </div>
 
@@ -459,7 +506,10 @@
       fontSize: 'normal',
       lastLoginDate: null,
       achievements: {},
-      maliPlays: 0
+      maliPlays: 0,
+      masterVolume: 70,
+      nickname: '',
+      theme: 'classic'
     };
   }
   let save = Object.assign(defaultSave(), loadSave() || {});
@@ -476,6 +526,20 @@
     save.lastLoginDate = today;
     dailyGiftMsg = '🎁 每日禮 +1000 籌碼！';
     persist();
+  }
+
+  // 時段問候
+  function getGreetingWord() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 11) return '早安';
+    if (h >= 11 && h < 14) return '午安';
+    if (h >= 14 && h < 18) return '下午好';
+    if (h >= 18 && h < 22) return '晚安';
+    return '夜深了，早點休息喔';
+  }
+  function buildGreeting() {
+    const name = save.nickname ? save.nickname + '，' : '';
+    return name + getGreetingWord() + '！';
   }
 
   // ---------- 遊戲狀態 ----------
@@ -525,6 +589,10 @@
   const maliCloseBtn = document.getElementById('maliCloseBtn');
   const maliResult = document.getElementById('maliResult');
   const maliCells = Array.from(document.querySelectorAll('.maliCell'));
+  const volumeSlider = document.getElementById('volumeSlider');
+  const volumeValueEl = document.getElementById('volumeValue');
+  const nicknameInput = document.getElementById('nicknameInput');
+  const themeBtns = Array.from(document.querySelectorAll('[data-theme]'));
 
   function updateHud() {
     chipsValueEl.textContent = gameState.chips;
@@ -537,15 +605,22 @@
     messageBarEl.textContent = msg;
   }
   updateHud();
-  if (dailyGiftMsg) showMessage(dailyGiftMsg);
+  showMessage(dailyGiftMsg ? buildGreeting() + ' ' + dailyGiftMsg : buildGreeting());
+  nicknameInput.value = save.nickname || '';
 
   // ---------- 音效（Web Audio 合成） ----------
   let audioCtx = null;
+  let masterGainNode = null;
   function ctx() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGainNode = audioCtx.createGain();
+      masterGainNode.gain.value = (save.masterVolume != null ? save.masterVolume : 70) / 100;
+      masterGainNode.connect(audioCtx.destination);
+    }
     return audioCtx;
   }
-  function tone(freq, start, dur, type, gainVal) {
+  function tone(freq, start, dur, type, gainVal, pan) {
     if (!gameState.soundOn) return;
     const c = ctx();
     const osc = c.createOscillator();
@@ -553,7 +628,14 @@
     osc.type = type || 'sine';
     osc.frequency.value = freq;
     gain.gain.value = gainVal != null ? gainVal : 0.15;
-    osc.connect(gain).connect(c.destination);
+    let outNode = masterGainNode;
+    if (pan != null && c.createStereoPanner) {
+      const panNode = c.createStereoPanner();
+      panNode.pan.value = Math.max(-1, Math.min(1, pan));
+      panNode.connect(masterGainNode);
+      outNode = panNode;
+    }
+    osc.connect(gain).connect(outNode);
     const t0 = c.currentTime + start;
     osc.start(t0);
     gain.gain.setValueAtTime(gain.gain.value, t0);
@@ -561,8 +643,8 @@
     osc.stop(t0 + dur + 0.02);
   }
   function sfxLaunch() { tone(440, 0, 0.05, 'sine', 0.12); }
-  function sfxSmallHole() { tone(660, 0, 0.08, 'sine'); tone(880, 0.08, 0.1, 'sine'); }
-  function sfxBigHole() { tone(880, 0, 0.08, 'sine'); tone(1100, 0.08, 0.08, 'sine'); tone(1320, 0.16, 0.12, 'sine'); }
+  function sfxSmallHole(pan) { tone(660, 0, 0.08, 'sine', null, pan); tone(880, 0.08, 0.1, 'sine', null, pan); }
+  function sfxBigHole(pan) { tone(880, 0, 0.08, 'sine', null, pan); tone(1100, 0.08, 0.08, 'sine', null, pan); tone(1320, 0.16, 0.12, 'sine', null, pan); }
   function sfx777() { tone(784, 0, 0.12, 'triangle'); tone(880, 0.1, 0.12, 'triangle'); tone(1047, 0.2, 0.12, 'triangle'); tone(1175, 0.3, 0.2, 'triangle'); }
   function sfxMiss() { tone(330, 0, 0.12, 'sawtooth', 0.06); }
   function sfxFeverStart() { tone(523, 0, 0.15, 'square'); tone(659, 0.1, 0.15, 'square'); tone(784, 0.2, 0.15, 'square'); tone(1047, 0.3, 0.3, 'square'); }
@@ -571,6 +653,20 @@
   function sfxAchieve() { tone(880, 0, 0.1, 'sine'); tone(1175, 0.1, 0.1, 'sine'); tone(1568, 0.2, 0.25, 'sine'); }
   function sfxMaliTick() { tone(600, 0, 0.04, 'square', 0.06); }
   function sfxMaliWin() { tone(523, 0, 0.1, 'triangle'); tone(659, 0.1, 0.1, 'triangle'); tone(784, 0.2, 0.1, 'triangle'); tone(1047, 0.3, 0.25, 'triangle'); }
+
+  // ---------- 語音回饋（Web Speech API） ----------
+  function speak(text) {
+    if (!gameState.soundOn) return;
+    if (!('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-TW';
+      u.rate = 0.95;
+      u.pitch = 1.05;
+      u.volume = (save.masterVolume != null ? save.masterVolume : 70) / 100;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
 
   soundBtn.addEventListener('click', () => {
     gameState.soundOn = !gameState.soundOn;
@@ -593,7 +689,7 @@
     osc.type = 'sine';
     osc.frequency.value = freq;
     gain.gain.value = 0.05;
-    osc.connect(gain).connect(c.destination);
+    osc.connect(gain).connect(masterGainNode);
     const t0 = c.currentTime;
     osc.start(t0);
     gain.gain.setValueAtTime(0.05, t0);
@@ -699,6 +795,46 @@
   const TRAIL_LENGTH = 10;
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // ---------- Fever 煙火／彩帶粒子特效 ----------
+  const PARTICLE_COLORS = ['#ffcc4d', '#ff6b6b', '#48dbfb', '#1dd1a1', '#ff9ff3', '#ff8c42'];
+  let particles = [];
+  function spawnFireworks() {
+    if (reduceMotion) return;
+    for (let i = 0; i < 50; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 4;
+      particles.push({
+        x: CANVAS_W / 2 + (Math.random() * 60 - 30),
+        y: 120 + Math.random() * 60,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 1,
+        color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
+        life: 50 + Math.random() * 30,
+        maxLife: 80
+      });
+    }
+  }
+  function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.08;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+  function renderParticles() {
+    particles.forEach(p => {
+      ctx2d.globalAlpha = Math.max(0, p.life / p.maxLife);
+      ctx2d.fillStyle = p.color;
+      ctx2d.beginPath();
+      ctx2d.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx2d.fill();
+    });
+    ctx2d.globalAlpha = 1;
+  }
+
   function spawnBall(power) {
     const spawnX = 340 - (power / 100) * 260 + (Math.random() * 10 - 5);
     const ball = Bodies.circle(spawnX, 30, BALL_RADIUS, {
@@ -790,6 +926,7 @@
             gameState.chips += 100;
             save.chips = gameState.chips;
             sfxSmallWin();
+            speak('小獎中囉！');
             showMessage('🍒🍒🍒 櫻桃連線！+100 籌碼');
             updateHud();
             persist();
@@ -822,6 +959,8 @@
     boardWrap.classList.add('fever');
     feverBanner.classList.add('show');
     sfxFeverStart();
+    speak('恭喜！進入 Fever！');
+    spawnFireworks();
 
     // 大入洞開口變大
     holeBodies.forEach(hb => {
@@ -898,19 +1037,20 @@
     const type = holeBody.holeDef.type;
     const table = SCORE_TABLE[type];
     const score = gameState.isFever ? table.fever : table.normal;
+    const pan = (holeBody.position.x / CANVAS_W) * 2 - 1;
 
     gameState.sessionScore += score;
     save.totalScore += score;
     save.totalHoles++;
 
     if (type === 'big') {
-      sfxBigHole();
+      sfxBigHole(pan);
       showMessage('🎯 大入洞！+' + score + ' 分');
       if (!gameState.isFever) {
         spinSlot(0.35);
       }
     } else {
-      sfxSmallHole();
+      sfxSmallHole(pan);
       showMessage('✨ 入洞！+' + score + ' 分');
       spinSlot(0.08);
     }
@@ -986,6 +1126,7 @@
   function syncSettingButtons() {
     gravityBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.gravity) === save.gravity));
     fontBtns.forEach(b => b.classList.toggle('active', b.dataset.font === save.fontSize));
+    themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === save.theme));
   }
   gravityBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1004,8 +1145,34 @@
       persist();
     });
   });
+  themeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      save.theme = btn.dataset.theme;
+      document.documentElement.setAttribute('data-theme', save.theme);
+      syncSettingButtons();
+      persist();
+    });
+  });
   appEl.classList.toggle('fontXL', save.fontSize === 'xl');
+  document.documentElement.setAttribute('data-theme', save.theme);
   syncSettingButtons();
+
+  // ---------- 音量滑桿 ----------
+  volumeSlider.value = save.masterVolume;
+  volumeValueEl.textContent = save.masterVolume;
+  volumeSlider.addEventListener('input', () => {
+    save.masterVolume = Number(volumeSlider.value);
+    volumeValueEl.textContent = save.masterVolume;
+    if (masterGainNode) masterGainNode.gain.value = save.masterVolume / 100;
+    persist();
+  });
+
+  // ---------- 玩家暱稱 ----------
+  nicknameInput.addEventListener('change', () => {
+    save.nickname = nicknameInput.value.trim().slice(0, 10);
+    nicknameInput.value = save.nickname;
+    persist();
+  });
 
   // ---------- 連續發射模式（按住不放自動連發） ----------
   const AUTO_FIRE_DELAY = 400;
@@ -1078,6 +1245,7 @@
       persist();
       sfxMaliWin();
       maliResult.textContent = '🎉 停在 ' + prize + '！獲得 ' + prize + ' 籌碼';
+      if (prize >= 200) speak('恭喜大獎！');
       checkAchievements();
     }
 
@@ -1131,10 +1299,17 @@
     gameState.missStreak = 0;
     if (gameState.isFever) endFever();
     if (gameState.musicOn) { gameState.musicOn = false; stopMusic(); updateMusicBtn(); }
+    particles = [];
     balls.slice().forEach(removeBall);
     renderAchievements();
+    nicknameInput.value = '';
+    volumeSlider.value = save.masterVolume;
+    volumeValueEl.textContent = save.masterVolume;
+    if (masterGainNode) masterGainNode.gain.value = save.masterVolume / 100;
+    document.documentElement.setAttribute('data-theme', save.theme);
+    syncSettingButtons();
     updateHud();
-    showMessage('已重新開始，繼續加油！');
+    showMessage(buildGreeting());
   });
 
   // ---------- beforeunload 存檔 ----------
@@ -1173,24 +1348,32 @@
       }
     }
 
+    updateParticles();
     render();
     requestAnimationFrame(loop);
   }
 
+  const THEME_COLORS = {
+    classic: { bg: '#241041', feverBg1: '#4a1f7a', feverBg2: '#241041', pin: '#d8c4ff', feverPin: '#ff8c42' },
+    retro:   { bg: '#2b0a0a', feverBg1: '#5c1a1a', feverBg2: '#2b0a0a', pin: '#ffd9a0', feverPin: '#ff4d4d' },
+    day:     { bg: '#fff8e7', feverBg1: '#ffe1b3', feverBg2: '#fff8e7', pin: '#7a4b00', feverPin: '#ff7f11' }
+  };
+
   function render() {
+    const theme = THEME_COLORS[save.theme] || THEME_COLORS.classic;
     // 背景
     if (gameState.isFever) {
       const grad = ctx2d.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, 20, CANVAS_W / 2, CANVAS_H / 2, 300);
-      grad.addColorStop(0, '#4a1f7a');
-      grad.addColorStop(1, '#241041');
+      grad.addColorStop(0, theme.feverBg1);
+      grad.addColorStop(1, theme.feverBg2);
       ctx2d.fillStyle = grad;
     } else {
-      ctx2d.fillStyle = '#241041';
+      ctx2d.fillStyle = theme.bg;
     }
     ctx2d.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     // 釘子
-    ctx2d.fillStyle = gameState.isFever ? '#ff8c42' : '#d8c4ff';
+    ctx2d.fillStyle = gameState.isFever ? theme.feverPin : theme.pin;
     pins.forEach(p => {
       ctx2d.beginPath();
       ctx2d.arc(p.position.x, p.position.y, PIN_RADIUS, 0, Math.PI * 2);
@@ -1242,6 +1425,9 @@
       ctx2d.fillStyle = grad;
       ctx2d.fill();
     });
+
+    // Fever 煙火粒子
+    renderParticles();
   }
 
   requestAnimationFrame(loop);
