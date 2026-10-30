@@ -750,6 +750,63 @@
   /* 確認視窗 */
   #confirmBox p { margin: 0 0 20px; font-size: calc(18px * var(--fs)); line-height: 1.6; text-align: center; }
 
+  /* 簽到集章卡 */
+  #stampGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stampCell {
+    position: relative;
+    min-height: 78px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 12px;
+    border: 2px dashed var(--line);
+    background: var(--panel-deep);
+  }
+  .stampCell.big { grid-column: span 2; border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel-deep)); }
+  .stampCell .day { font-size: calc(13px * var(--fs)); color: var(--text-muted); font-weight: bold; }
+  .stampCell .rw { font-size: calc(15px * var(--fs)); color: var(--accent); font-weight: bold; }
+  .stampCell .sk { font-size: 28px; line-height: 1.1; }
+  .stampCell .seal {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 54px; height: 54px;
+    margin: -27px 0 0 -27px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 3px double #fff3e0;
+    background: radial-gradient(circle at 40% 35%, #ff5a5a, #c81e1e 70%);
+    color: #fff;
+    font-family: "DFKai-SB", "BiauKai", "Kaiti TC", serif;
+    font-size: 30px;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transform: rotate(-12deg);
+    opacity: 0.93;
+  }
+  .stampCell.stamped .seal { display: flex; }
+  /* 第 7 格比較寬：印章蓋在右側，不遮住「第 7 天／獎勵」文字 */
+  .stampCell.big.stamped { padding-right: 58px; }
+  .stampCell.big .seal { left: auto; right: 8px; margin-left: 0; }
+  .stampCell.stamp-new .seal { animation: stampDrop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) 0.6s both; }
+  @keyframes stampDrop {
+    from { transform: scale(2.6) rotate(-35deg); opacity: 0; }
+    to { transform: scale(1) rotate(-12deg); opacity: 0.93; }
+  }
+  #stampMsg { min-height: 26px; margin-bottom: 6px; text-align: center; font-size: calc(17px * var(--fs)); font-weight: bold; color: var(--accent); }
+  .stampHint { margin: 0 0 14px; text-align: center; font-size: calc(14px * var(--fs)); color: var(--text-muted); line-height: 1.5; }
+  #stampOk { width: 100%; }
+  #openStampBtn { width: 100%; margin-bottom: 12px; }
+
+  /* 彈珠外觀 */
+  .skinGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .skinGrid .toggleBtn { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
+  .skinGrid .toggleBtn small { font-size: calc(12px * var(--fs)); font-weight: normal; }
+  .skinGrid .toggleBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
   /* 小瑪莉水果盤 */
   #maliGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
   .maliCell {
@@ -813,7 +870,7 @@
     .score-value.pulse, .delta, #messageBar.pop, .reel.land .sym,
     #feverBanner, #boardWrap.fever, .reel.spinning .sym, .maliCell.final { animation: none; }
     .reel.reach { animation: none; box-shadow: 0 0 14px 5px #ffcc4d; }
-    #pushBtn, #feverChain.pop, #guarantee.near #guaranteeFill, #holdDots i.on, #holdDots i.pop, #slotMachine.focus[data-heat] { animation: none; }
+    .stampCell.stamp-new .seal, #pushBtn, #feverChain.pop, #guarantee.near #guaranteeFill, #holdDots i.on, #holdDots i.pop, #slotMachine.focus[data-heat] { animation: none; }
     #slotMachine.win .reel { animation: none; background: var(--accent); }
     .reel.spinning .sym { filter: none; }
     canvas, #slotMachine, .overlay, .modal, #toast { transition: none; }
@@ -900,6 +957,7 @@
 <div class="overlay" id="achieveOverlay" aria-hidden="true">
   <div class="modal" role="dialog" aria-labelledby="achieveTitle">
     <div class="modal-head"><h2 id="achieveTitle">🏆 成就</h2><button class="closeX" data-close aria-label="關閉">✕</button></div>
+    <button class="smallBtn primary" id="openStampBtn">📅 查看簽到集章卡</button>
     <div id="achieveList"></div>
   </div>
 </div>
@@ -948,9 +1006,23 @@
       </div>
     </div>
     <div class="settingGroup">
+      <span class="sl">彈珠外觀（簽到集滿章就能解鎖）</span>
+      <div class="skinGrid" id="skinBtns"></div>
+    </div>
+    <div class="settingGroup">
       <span class="sl">暱稱（開場問候用）</span>
       <input type="text" id="nicknameInput" maxlength="10" placeholder="輸入暱稱（選填）">
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="stampOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-labelledby="stampTitle">
+    <div class="modal-head"><h2 id="stampTitle">📅 簽到集章卡</h2><button class="closeX" data-close aria-label="關閉">✕</button></div>
+    <div id="stampGrid"></div>
+    <div id="stampMsg"></div>
+    <p class="stampHint">每天第一次打開遊戲就蓋一個章，<br>中間休息幾天也沒關係，章不會不見喔！</p>
+    <button class="smallBtn primary" id="stampOk" data-close>好的，開始玩！</button>
   </div>
 </div>
 
@@ -1026,6 +1098,10 @@
       nickname: '',
       theme: 'classic',
       uiScale: 'auto',
+      stampCount: 0,          // 目前這張集章卡蓋了幾個章（0~7）
+      stampCardsDone: 0,      // 已集滿幾張
+      unlockedSkins: ['classic'],
+      ballSkin: 'classic',
       missStreak: 0,
       layoutVersion: LAYOUT_VERSION
     };
@@ -1057,14 +1133,41 @@
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
   }
 
-  // 每日登入禮
-  let dailyGiftMsg = null;
-  const today = todayStr();
-  if (save.lastLoginDate !== today) {
-    gameState.chips += 1000;
-    save.lastLoginDate = today;
-    dailyGiftMsg = '🎁 每日禮 +1000 籌碼！';
+  // ---------- 每日簽到集章卡（取代原本的每日禮；累計制，中間斷幾天章也不會消失） ----------
+  const STAMP_DAYS = 7;
+  const STAMP_REWARDS = [1000, 1000, 1200, 1200, 1500, 1500, 1500];
+  const STAMP_BONUS_ALL_SKINS = 5000; // 外觀全解鎖後，集滿一張改送大紅包
+  const SKINS = [
+    { id: 'classic', icon: '🔴', name: '彩色' },
+    { id: 'gold', icon: '🟡', name: '金色' },
+    { id: 'star', icon: '⭐', name: '星星' },
+    { id: 'flower', icon: '🌸', name: '花朵' },
+    { id: 'ingot', icon: '💰', name: '金元寶' }
+  ];
+  function skinById(id) { return SKINS.find(k => k.id === id) || SKINS[0]; }
+  function nextLockedSkin() { return SKINS.find(k => !save.unlockedSkins.includes(k.id)); }
+  function applyDailyStamp() {
+    if (save.stampCount >= STAMP_DAYS) save.stampCount = 0; // 上一張集滿了，換新卡
+    const idx = save.stampCount;
+    let reward = STAMP_REWARDS[idx];
+    let skin = null;
+    save.stampCount++;
+    if (save.stampCount === STAMP_DAYS) {
+      save.stampCardsDone++;
+      const next = nextLockedSkin();
+      if (next) {
+        save.unlockedSkins.push(next.id);
+        save.ballSkin = next.id; // 直接幫長輩換上，馬上看得到獎勵
+        skin = next;
+      } else {
+        reward += STAMP_BONUS_ALL_SKINS;
+      }
+    }
+    gameState.chips += reward;
+    save.lastLoginDate = todayStr();
+    return { idx, reward, skin };
   }
+  let pendingStamp = save.lastLoginDate !== todayStr() ? applyDailyStamp() : null;
   persist();
 
   // 時段問候
@@ -1217,7 +1320,7 @@
   }
 
   showMessage(buildGreeting() + ' 按「發射」讓彈珠落下吧！');
-  if (dailyGiftMsg) setTimeout(() => showToast(dailyGiftMsg), 400);
+
   nicknameInput.value = save.nickname || '';
 
   // ---------- 音效（Web Audio 合成） ----------
@@ -1265,6 +1368,7 @@
   function sfxAchieve() { tone(880, 0, 0.1, 'sine'); tone(1175, 0.1, 0.1, 'sine'); tone(1568, 0.2, 0.25, 'sine'); }
   function sfxMaliTick() { tone(600, 0, 0.04, 'square', 0.06); }
   function sfxMaliWin() { tone(523, 0, 0.1, 'triangle'); tone(659, 0.1, 0.1, 'triangle'); tone(784, 0.2, 0.1, 'triangle'); tone(1047, 0.3, 0.25, 'triangle'); }
+  function sfxStamp() { tone(150, 0, 0.12, 'square', 0.14); tone(90, 0.02, 0.18, 'sine', 0.2); tone(1047, 0.12, 0.15, 'triangle', 0.08); }
   function sfxHeat(heat) {
     const notes = heat === 'rainbow' ? [784, 988, 1175, 1568] : [659, 880];
     notes.forEach((f, i) => tone(f, i * 0.08, 0.12, 'triangle', 0.12));
@@ -1814,6 +1918,7 @@
     { id: 'feverMaster', icon: '⚡', name: '電光石火', desc: '累計進入大獎時間 10 次', progress: () => [save.totalFever, 10] },
     { id: 'richChips', icon: '💰', name: '籌碼大亨', desc: '籌碼達 5000', progress: () => [gameState.chips, 5000] },
     { id: 'maliFan', icon: '🍓', name: '水果盤達人', desc: '玩過 5 次小瑪莉', progress: () => [save.maliPlays, 5] },
+    { id: 'stampCard', icon: '📅', name: '簽到達人', desc: '集滿 1 張簽到集章卡', progress: () => [save.stampCardsDone, 1] },
   ];
   function unlockAchievement(a) {
     sfxAchieve();
@@ -1879,7 +1984,83 @@
   }
   statsBtn.addEventListener('click', () => { renderStats(); openModal(statsOverlay); });
   achieveBtn.addEventListener('click', () => { renderAchievements(); openModal(achieveOverlay); });
-  settingsBtn.addEventListener('click', () => openModal(settingsOverlay));
+  settingsBtn.addEventListener('click', () => { renderSkinButtons(); openModal(settingsOverlay); });
+
+  // ---------- 簽到集章卡畫面 ----------
+  const stampOverlay = $('stampOverlay');
+  const stampGrid = $('stampGrid');
+  const stampMsg = $('stampMsg');
+  const stampTitle = $('stampTitle');
+  function showStampCard(info) {
+    const full = save.stampCount >= STAMP_DAYS;
+    const cardNo = full ? save.stampCardsDone : save.stampCardsDone + 1;
+    stampTitle.textContent = '📅 集章卡・第 ' + cardNo + ' 張';
+    // 第 7 格顯示這張卡能換到的外觀
+    const prize = (info && info.skin) || (full ? null : nextLockedSkin());
+    stampGrid.innerHTML = '';
+    for (let i = 0; i < STAMP_DAYS; i++) {
+      const cell = document.createElement('div');
+      const last = i === STAMP_DAYS - 1;
+      cell.className = 'stampCell' + (last ? ' big' : '') + (i < save.stampCount ? ' stamped' : '') +
+        (info && i === info.idx && !reduceMotion ? ' stamp-new' : '');
+      let inner = '<span class="day">第 ' + (i + 1) + ' 天</span>';
+      if (last && prize) inner += '<span class="sk">' + prize.icon + '</span><span class="rw">' + prize.name + '彈珠</span>';
+      else if (last) inner += '<span class="sk">🧧</span><span class="rw">大紅包</span>';
+      else inner += '<span class="rw">+' + fmt(STAMP_REWARDS[i]) + '</span>';
+      cell.innerHTML = inner + '<span class="seal">福</span>';
+      stampGrid.appendChild(cell);
+    }
+    if (info) {
+      let msg = '今天蓋章！獲得 ' + fmt(info.reward) + ' 籌碼';
+      if (info.skin) msg = '🎉 集滿了！已換上' + info.skin.name + '彈珠';
+      else if (save.stampCount >= STAMP_DAYS) msg = '🎉 集滿了！大紅包 ' + fmt(info.reward) + ' 籌碼！';
+      stampMsg.textContent = msg;
+    } else {
+      stampMsg.textContent = '已集 ' + save.stampCount + ' / ' + STAMP_DAYS + ' 個章';
+    }
+    openModal(stampOverlay);
+    if (!info) return;
+    setTimeout(() => {
+      sfxStamp();
+      if (save.stampCount >= STAMP_DAYS) {
+        setTimeout(() => {
+          sfx777();
+          spawnFireworks();
+          speak('集滿了！恭喜！');
+        }, 400);
+      } else {
+        speak('簽到成功！');
+      }
+    }, reduceMotion ? 0 : 750);
+    checkAchievements();
+  }
+  function checkNewDay() {
+    if (save.lastLoginDate === todayStr()) return;
+    const info = applyDailyStamp();
+    updateHud();
+    persist();
+    showStampCard(info);
+  }
+  $('openStampBtn').addEventListener('click', () => showStampCard(null));
+
+  // ---------- 彈珠外觀設定 ----------
+  const skinBtnsEl = $('skinBtns');
+  function renderSkinButtons() {
+    skinBtnsEl.innerHTML = '';
+    SKINS.forEach((k, i) => {
+      const b = document.createElement('button');
+      const unlocked = save.unlockedSkins.includes(k.id);
+      b.className = 'toggleBtn' + (save.ballSkin === k.id ? ' active' : '');
+      b.disabled = !unlocked;
+      b.innerHTML = '<span>' + k.icon + ' ' + k.name + '</span>' + (unlocked ? '' : '<small>🔒 集滿第 ' + i + ' 張</small>');
+      b.addEventListener('click', () => {
+        save.ballSkin = k.id;
+        persist();
+        renderSkinButtons();
+      });
+      skinBtnsEl.appendChild(b);
+    });
+  }
 
   // ---------- 入洞處理 ----------
   const SCORE_TABLE = {
@@ -2256,6 +2437,7 @@
   window.addEventListener('beforeunload', persist);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { stopFiring(); persist(); }
+    else if (!activeModal) checkNewDay();
   });
 
   // ---------- Canvas 配色與預先繪製的圖層 ----------
@@ -2722,12 +2904,133 @@
     drawRipples();
   }
 
+  const SKIN_TRAIL = { gold: '#ffd84d', star: '#fff1a8', flower: '#ff9ff3', ingot: '#ffcc4d' };
+
+  function drawGoldBall(b, x, y) {
+    const grad = ctx2d.createRadialGradient(x - 2.8, y - 3, 0.5, x, y, BALL_RADIUS);
+    grad.addColorStop(0, '#fffbe0');
+    grad.addColorStop(0.35, '#ffd84d');
+    grad.addColorStop(0.8, '#c8961a');
+    grad.addColorStop(1, '#7a5200');
+    ctx2d.fillStyle = grad;
+    ctx2d.beginPath();
+    ctx2d.arc(x, y, BALL_RADIUS, 0, Math.PI * 2);
+    ctx2d.fill();
+    ctx2d.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx2d.beginPath();
+    ctx2d.arc(x - 2.8, y - 3, 1.8, 0, Math.PI * 2);
+    ctx2d.fill();
+    // 一閃一閃的星芒
+    if (!reduceMotion) {
+      const tw = Math.abs(Math.sin(frameCount * 0.12 + b.id));
+      const r = 1 + 3.5 * tw;
+      ctx2d.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.6 * tw).toFixed(2) + ')';
+      ctx2d.beginPath();
+      ctx2d.moveTo(x + 3, y - 3 - r);
+      ctx2d.lineTo(x + 3.7, y - 3.7);
+      ctx2d.lineTo(x + 3 + r, y - 3);
+      ctx2d.lineTo(x + 3.7, y - 2.3);
+      ctx2d.lineTo(x + 3, y - 3 + r);
+      ctx2d.lineTo(x + 2.3, y - 2.3);
+      ctx2d.lineTo(x + 3 - r, y - 3);
+      ctx2d.lineTo(x + 2.3, y - 3.7);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+  }
+  function drawStarBall(b, x, y) {
+    // 底下一圈各自不同的顏色光暈，長輩仍可靠顏色追蹤每一顆
+    ctx2d.globalAlpha = 0.45;
+    ctx2d.fillStyle = b.color.c;
+    ctx2d.beginPath();
+    ctx2d.arc(x, y, BALL_RADIUS, 0, Math.PI * 2);
+    ctx2d.fill();
+    ctx2d.globalAlpha = 1;
+    ctx2d.save();
+    ctx2d.translate(x, y);
+    ctx2d.rotate(b.angle);
+    const R = BALL_RADIUS + 1.8, r = R * 0.47;
+    ctx2d.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const rad = i % 2 === 0 ? R : r;
+      ctx2d.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+    }
+    ctx2d.closePath();
+    const grad = ctx2d.createRadialGradient(-2, -3, 0.5, 0, 0, R);
+    grad.addColorStop(0, '#fffbe0');
+    grad.addColorStop(0.5, '#ffd000');
+    grad.addColorStop(1, '#d18f00');
+    ctx2d.fillStyle = grad;
+    ctx2d.fill();
+    ctx2d.lineWidth = 1.2;
+    ctx2d.strokeStyle = '#7a4b00';
+    ctx2d.stroke();
+    ctx2d.restore();
+  }
+  function drawFlowerBall(b, x, y) {
+    ctx2d.save();
+    ctx2d.translate(x, y);
+    ctx2d.rotate(b.angle);
+    ctx2d.lineWidth = 1;
+    ctx2d.strokeStyle = b.color.s;
+    for (let i = 0; i < 5; i++) {
+      const a = (i * Math.PI * 2) / 5;
+      const px = Math.cos(a) * 4.8, py = Math.sin(a) * 4.8;
+      const grad = ctx2d.createRadialGradient(px * 0.6, py * 0.6, 0.5, px, py, 4.6);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(1, b.color.c);
+      ctx2d.fillStyle = grad;
+      ctx2d.beginPath();
+      ctx2d.arc(px, py, 4.4, 0, Math.PI * 2);
+      ctx2d.fill();
+      ctx2d.stroke();
+    }
+    ctx2d.fillStyle = '#ffe066';
+    ctx2d.strokeStyle = '#c98a00';
+    ctx2d.beginPath();
+    ctx2d.arc(0, 0, 3.2, 0, Math.PI * 2);
+    ctx2d.fill();
+    ctx2d.stroke();
+    ctx2d.restore();
+  }
+  function drawIngotBall(b, x, y) {
+    // 金元寶不跟著滾動旋轉，永遠正正的比較好認
+    const grad = ctx2d.createLinearGradient(0, y - 8, 0, y + 8);
+    grad.addColorStop(0, '#fff3b0');
+    grad.addColorStop(0.5, '#ffcc33');
+    grad.addColorStop(1, '#b37a00');
+    ctx2d.fillStyle = grad;
+    ctx2d.strokeStyle = '#7a5200';
+    ctx2d.lineWidth = 1.2;
+    // 底座船形
+    ctx2d.beginPath();
+    ctx2d.moveTo(x - 10, y - 2.5);
+    ctx2d.quadraticCurveTo(x - 8.5, y + 7.5, x, y + 7.5);
+    ctx2d.quadraticCurveTo(x + 8.5, y + 7.5, x + 10, y - 2.5);
+    ctx2d.quadraticCurveTo(x, y + 1.5, x - 10, y - 2.5);
+    ctx2d.closePath();
+    ctx2d.fill();
+    ctx2d.stroke();
+    // 上方圓頂
+    ctx2d.beginPath();
+    ctx2d.ellipse(x, y - 0.5, 5.2, 6.5, 0, Math.PI, 0);
+    ctx2d.closePath();
+    ctx2d.fill();
+    ctx2d.stroke();
+    ctx2d.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx2d.beginPath();
+    ctx2d.ellipse(x - 1.8, y - 4, 1.4, 2, 0, 0, Math.PI * 2);
+    ctx2d.fill();
+  }
+
   function drawBalls() {
+    const skin = save.ballSkin || 'classic';
     if (!reduceMotion) {
       balls.forEach(b => {
         b.trail.forEach((p, i) => {
           ctx2d.globalAlpha = (i / b.trail.length) * 0.32;
-          ctx2d.fillStyle = b.color.c;
+          ctx2d.fillStyle = SKIN_TRAIL[skin] || b.color.c;
           ctx2d.beginPath();
           ctx2d.arc(p.x, p.y, BALL_RADIUS * (0.4 + 0.4 * i / b.trail.length), 0, Math.PI * 2);
           ctx2d.fill();
@@ -2741,6 +3044,10 @@
       ctx2d.beginPath();
       ctx2d.arc(x + 1.5, y + 2.5, BALL_RADIUS, 0, Math.PI * 2);
       ctx2d.fill();
+      if (skin === 'gold') { drawGoldBall(b, x, y); return; }
+      if (skin === 'star') { drawStarBall(b, x, y); return; }
+      if (skin === 'flower') { drawFlowerBall(b, x, y); return; }
+      if (skin === 'ingot') { drawIngotBall(b, x, y); return; }
       const grad = ctx2d.createRadialGradient(x - 2.8, y - 3, 0.5, x, y, BALL_RADIUS);
       grad.addColorStop(0, '#ffffff');
       grad.addColorStop(0.3, b.color.c);
@@ -2829,6 +3136,11 @@
 
   // ---------- 啟動 ----------
   updateGuarantee();
+  if (pendingStamp) {
+    const info = pendingStamp;
+    pendingStamp = null;
+    setTimeout(() => showStampCard(info), 600);
+  }
   applyFont();
   document.documentElement.setAttribute('data-theme', save.theme);
   themeMeta.setAttribute('content', THEME_META[save.theme] || THEME_META.classic);
