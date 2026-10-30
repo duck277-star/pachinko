@@ -309,7 +309,7 @@
     color: var(--text-muted);
   }
   #holdDots i {
-    width: 11px; height: 11px;
+    width: 14px; height: 14px;
     border-radius: 50%;
     border: 1px solid var(--line);
     background: var(--track);
@@ -318,6 +318,35 @@
   #holdDots i.on {
     background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%);
     box-shadow: 0 0 6px var(--accent);
+  }
+  /* 燈號顏色＝這一轉的機會大小：一般(金) < 藍 < 綠 < 紅 < 彩虹(必中) */
+  #holdDots i.on.heat-blue { background: radial-gradient(circle at 35% 35%, #fff, #3fa9ff 60%); box-shadow: 0 0 8px #3fa9ff; }
+  #holdDots i.on.heat-green { background: radial-gradient(circle at 35% 35%, #fff, #2fd67b 60%); box-shadow: 0 0 9px #2fd67b; }
+  #holdDots i.on.heat-red {
+    background: radial-gradient(circle at 35% 35%, #fff, #ff2d55 60%);
+    box-shadow: 0 0 12px 2px #ff2d55;
+    animation: heatPulse 0.5s ease-in-out infinite alternate;
+  }
+  #holdDots i.on.heat-rainbow {
+    background: conic-gradient(#ff2d55, #ffcc4d, #2fd67b, #3fa9ff, #b05cff, #ff2d55);
+    box-shadow: 0 0 14px 3px #fff;
+    animation: heatPulse 0.4s ease-in-out infinite alternate, rainbowSpin 1.2s linear infinite;
+  }
+  #holdDots i.pop { animation: dotPop 0.45s ease; }
+  @keyframes heatPulse { to { transform: scale(1.25); } }
+  @keyframes rainbowSpin { to { filter: hue-rotate(360deg); } }
+  @keyframes dotPop { 0% { transform: scale(0.3); } 60% { transform: scale(1.5); } 100% { transform: scale(1); } }
+  /* 轉動中的老虎機外框也用同一個顏色發光 */
+  #slotMachine.focus[data-heat="blue"] { box-shadow: 0 0 40px 12px rgba(63, 169, 255, 0.75); }
+  #slotMachine.focus[data-heat="green"] { box-shadow: 0 0 40px 12px rgba(47, 214, 123, 0.75); }
+  #slotMachine.focus[data-heat="red"] { border-color: #ff2d55; box-shadow: 0 0 46px 14px rgba(255, 45, 85, 0.85); }
+  #slotMachine.focus[data-heat="rainbow"] { border-color: #fff; animation: rainbowFrame 1s linear infinite; }
+  @keyframes rainbowFrame {
+    0% { box-shadow: 0 0 46px 14px #ff2d55; }
+    25% { box-shadow: 0 0 46px 14px #ffcc4d; }
+    50% { box-shadow: 0 0 46px 14px #2fd67b; }
+    75% { box-shadow: 0 0 46px 14px #3fa9ff; }
+    100% { box-shadow: 0 0 46px 14px #ff2d55; }
   }
 
   /* 必中進度條：連續沒中大獎時，看得到「再幾次一定中」 */
@@ -356,8 +385,8 @@
     position: absolute;
     left: 50%; top: 42%;
     z-index: 25;
-    width: 148px; height: 148px;
-    margin: -74px 0 0 -74px;
+    width: 172px; height: 172px;
+    margin: -86px 0 0 -86px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -373,8 +402,8 @@
     animation: pushPulse 0.6s ease-in-out infinite alternate;
   }
   #pushBtn[hidden] { display: none; }
-  #pushBtn b { font-size: 36px; line-height: 1.1; }
-  #pushBtn small { font-size: 15px; font-weight: bold; opacity: 0.9; }
+  #pushBtn b { font-size: 34px; line-height: 1.12; letter-spacing: 1px; }
+  #pushBtn small { margin-top: 4px; font-size: 14px; font-weight: bold; opacity: 0.95; }
   #pushBtn:active, #pushBtn.pressed {
     animation: none;
     transform: translateY(6px) scale(0.96);
@@ -784,7 +813,7 @@
     .score-value.pulse, .delta, #messageBar.pop, .reel.land .sym,
     #feverBanner, #boardWrap.fever, .reel.spinning .sym, .maliCell.final { animation: none; }
     .reel.reach { animation: none; box-shadow: 0 0 14px 5px #ffcc4d; }
-    #pushBtn, #feverChain.pop, #guarantee.near #guaranteeFill { animation: none; }
+    #pushBtn, #feverChain.pop, #guarantee.near #guaranteeFill, #holdDots i.on, #holdDots i.pop, #slotMachine.focus[data-heat] { animation: none; }
     #slotMachine.win .reel { animation: none; background: var(--accent); }
     .reel.spinning .sym { filter: none; }
     canvas, #slotMachine, .overlay, .modal, #toast { transition: none; }
@@ -827,7 +856,7 @@
 
   <div id="boardWrap">
     <canvas id="board" width="360" height="520" aria-label="柏青哥盤面"></canvas>
-    <button id="pushBtn" hidden><b>按我！</b><small>揭曉結果</small></button>
+    <button id="pushBtn" hidden><b>按我<br>開獎！</b><small>看會不會中大獎</small></button>
   </div>
 
   <div id="messageBar" role="status" aria-live="polite"></div>
@@ -1236,6 +1265,10 @@
   function sfxAchieve() { tone(880, 0, 0.1, 'sine'); tone(1175, 0.1, 0.1, 'sine'); tone(1568, 0.2, 0.25, 'sine'); }
   function sfxMaliTick() { tone(600, 0, 0.04, 'square', 0.06); }
   function sfxMaliWin() { tone(523, 0, 0.1, 'triangle'); tone(659, 0.1, 0.1, 'triangle'); tone(784, 0.2, 0.1, 'triangle'); tone(1047, 0.3, 0.25, 'triangle'); }
+  function sfxHeat(heat) {
+    const notes = heat === 'rainbow' ? [784, 988, 1175, 1568] : [659, 880];
+    notes.forEach((f, i) => tone(f, i * 0.08, 0.12, 'triangle', 0.12));
+  }
   function sfxPush() { tone(196, 0, 0.18, 'square', 0.12); tone(392, 0.02, 0.25, 'triangle', 0.12); }
   function sfxReach() { [523, 587, 659, 698, 784, 880].forEach((f, i) => tone(f, i * 0.07, 0.08, 'square', 0.08)); }
 
@@ -1383,6 +1416,7 @@
     });
     body.holeDef = h;
     body.flash = 0;
+    body.bounce = 0;
     return body;
   });
   World.add(world, holeBodies);
@@ -1422,6 +1456,29 @@
       });
     }
   }
+  // 進洞時從洞口彈出的旋轉金幣
+  function spawnCoins(x, y, count) {
+    if (reduceMotion) return;
+    for (let i = 0; i < count; i++) {
+      const life = 45 + Math.random() * 20;
+      particles.push({
+        kind: 'coin',
+        x: x + (Math.random() * 16 - 8), y,
+        vx: Math.random() * 3 - 1.5,
+        vy: -3 - Math.random() * 2.5,
+        size: 4 + Math.random() * 1.5,
+        spin: Math.random() * Math.PI,
+        life,
+        maxLife: life
+      });
+    }
+  }
+  // 洞口地面的光圈漣漪
+  let ripples = [];
+  function spawnRipple(x, y, color) {
+    if (reduceMotion) return;
+    ripples.push({ x, y, color, life: 30, maxLife: 30 });
+  }
   function spawnFireworks() {
     spawnBurst(CANVAS_W / 2 + (Math.random() * 60 - 30), 120 + Math.random() * 60, 50, 2, 6, PARTICLE_COLORS);
   }
@@ -1431,7 +1488,8 @@
       p.x += p.vx;
       p.y += p.vy;
       p.vx *= 0.985;
-      p.vy += 0.08;
+      p.vy += p.kind === 'coin' ? 0.16 : 0.08;
+      if (p.kind === 'coin') p.spin += 0.3;
       p.life--;
       if (p.life <= 0) particles.splice(i, 1);
     }
@@ -1527,8 +1585,14 @@
   }
   pushBtn.addEventListener('click', pressPush);
 
+  const HEAT_CLASSES = ['heat-blue', 'heat-green', 'heat-red', 'heat-rainbow'];
   function renderHoldDots() {
-    holdDotEls.forEach((d, i) => d.classList.toggle('on', i < holdQueue.length));
+    holdDotEls.forEach((d, i) => {
+      const spin = holdQueue[i];
+      d.classList.toggle('on', !!spin);
+      HEAT_CLASSES.forEach(c => d.classList.remove(c));
+      if (spin && spin.heat !== 'normal') d.classList.add('heat-' + spin.heat);
+    });
   }
   function retrigger(el, cls) {
     el.classList.remove(cls);
@@ -1536,27 +1600,10 @@
     el.classList.add(cls);
   }
 
-  function spinSlot(winProb) {
-    if (slotSpinning) {
-      if (holdQueue.length < MAX_HOLD) {
-        holdQueue.push(winProb);
-        renderHoldDots();
-      }
-      return;
-    }
-    runSpin(winProb);
-  }
-
-  function runSpin(winProb) {
-    slotSpinning = true;
-    slotMachineEl.classList.remove('win');
-    slotMachineEl.classList.add('focus');
-    // Fever 中盤面才是主角，不壓暗；保留連轉時也就不會讓盤面長時間變暗
-    boardWrap.classList.toggle('dim', !gameState.isFever);
-
-    const forceWin = gameState.missStreak >= GUARANTEE_SPINS;
+  // 入洞當下就決定這一轉的結果（先讀），待轉燈號才能預先用顏色透露機會大小
+  function decideResult(winProb) {
     let result;
-    if (forceWin || Math.random() < winProb) {
+    if (Math.random() < winProb) {
       result = ['7️⃣', '7️⃣', '7️⃣'];
     } else {
       const r = Math.random();
@@ -1571,9 +1618,61 @@
         result = randomResult();
       }
     }
+    return result;
+  }
+  function isReach(result) {
+    return result[0] === result[1] && (result[0] === '7️⃣' || result[0] === '🍒');
+  }
+  // 燈號顏色：彩虹只會出現在必中大獎；紅色機會很大；純粹沒中的不會給紅色，避免長輩覺得被騙
+  function pickHeat(result) {
+    const r = Math.random();
+    const sevens = countSymbol(result, '7️⃣');
+    if (sevens === 3) return r < 0.3 ? 'rainbow' : r < 0.8 ? 'red' : r < 0.95 ? 'green' : 'blue';
+    if (isReach(result)) return r < 0.3 ? 'red' : r < 0.65 ? 'green' : r < 0.9 ? 'blue' : 'normal';
+    if (sevens === 2 || countSymbol(result, '🍒') === 3) return r < 0.3 ? 'green' : r < 0.7 ? 'blue' : 'normal';
+    return r < 0.12 ? 'blue' : r < 0.15 ? 'green' : 'normal';
+  }
+  const HEAT_HINTS = {
+    red: '🔴 出現紅燈！中大獎的機會很大！',
+    rainbow: '🌈 彩虹燈！這一轉一定中大獎！'
+  };
+
+  function spinSlot(winProb) {
+    const result = decideResult(winProb);
+    const spin = { result, heat: pickHeat(result) };
+    if (slotSpinning) {
+      if (holdQueue.length < MAX_HOLD) {
+        holdQueue.push(spin);
+        renderHoldDots();
+        const dot = holdDotEls[holdQueue.length - 1];
+        if (!reduceMotion) retrigger(dot, 'pop');
+        if (HEAT_HINTS[spin.heat]) {
+          showMessage(HEAT_HINTS[spin.heat], 'win');
+          sfxHeat(spin.heat);
+        }
+      }
+      return;
+    }
+    runSpin(spin);
+  }
+
+  function runSpin(spin) {
+    let result = spin.result;
+    let heat = spin.heat;
+    // 保底到了就必中；先讀時還沒到保底的那一轉，在真正轉動時補上
+    if (gameState.missStreak >= GUARANTEE_SPINS) {
+      result = ['7️⃣', '7️⃣', '7️⃣'];
+      heat = 'rainbow';
+    }
+    slotSpinning = true;
+    slotMachineEl.classList.remove('win');
+    slotMachineEl.classList.add('focus');
+    slotMachineEl.dataset.heat = heat;
+    // Fever 中盤面才是主角，不壓暗；保留連轉時也就不會讓盤面長時間變暗
+    boardWrap.classList.toggle('dim', !gameState.isFever);
 
     // 「就差一個」演出：前兩格已是 7 或櫻桃時，最後一格停住不動，等玩家按「按我！」才揭曉
-    const reach = result[0] === result[1] && (result[0] === '7️⃣' || result[0] === '🍒');
+    const reach = isReach(result);
     const stopDelays = [600, 1000, 1400];
 
     const spinIntervals = [];
@@ -1593,7 +1692,7 @@
       if (!reduceMotion) retrigger(el, 'land');
       if (i === 1 && reach) {
         reelEls[2].classList.add('reach');
-        showMessage('🔥 就差一個！按「按我！」揭曉 🔥', 'big');
+        showMessage('🔥 就差一個！按「按我開獎」揭曉 🔥', 'big');
         sfxReach();
         setTimeout(() => showPushButton(() => stopReel(2)), 500);
       }
@@ -1644,6 +1743,7 @@
         runSpin(next);
       } else {
         slotMachineEl.classList.remove('focus', 'win');
+        delete slotMachineEl.dataset.heat;
         boardWrap.classList.remove('dim');
       }
     }, isWin ? 1200 : 500);
@@ -1800,6 +1900,9 @@
     save.totalHoles++;
     if (gameState.isFever) gameState.feverEarned += score;
     holeBody.flash = 1;
+    holeBody.bounce = 1;
+    spawnRipple(holeBody.position.x, HOLE_Y, type === 'big' ? theme.holeBig : type === 'small-inner' ? theme.holeInner : theme.holeOuter);
+    spawnCoins(ball.position.x, HOLE_Y - 10, type === 'big' ? (gameState.isFever ? 12 : 8) : 3);
     spawnFloat(Math.max(24, Math.min(CANVAS_W - 24, ball.position.x)), HOLE_Y - 22, '+' + score, type === 'big' ? theme.holeBig : '#ffffff');
 
     if (type === 'big') {
@@ -2133,6 +2236,7 @@
     updateSoundBtn();
     particles = [];
     floats = [];
+    ripples = [];
     holdQueue.length = 0;
     renderHoldDots();
     updateGuarantee();
@@ -2333,7 +2437,13 @@
     }
 
     pins.forEach(p => { if (p.flash > 0) p.flash = Math.max(0, p.flash - 0.06); });
-    holeBodies.forEach(hb => { if (hb.flash > 0) hb.flash = Math.max(0, hb.flash - 0.035); });
+    holeBodies.forEach(hb => {
+      if (hb.flash > 0) hb.flash = Math.max(0, hb.flash - 0.035);
+      if (hb.bounce > 0) hb.bounce = Math.max(0, hb.bounce - 0.06);
+    });
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      if (--ripples[i].life <= 0) ripples.splice(i, 1);
+    }
     updateParticles();
     updateFloats();
 
@@ -2434,45 +2544,160 @@
     ctx2d.restore();
   }
 
-  function drawPocket(t, x0, x1, color, label, flash, glow) {
+  const RAINBOW = ['#ff2d55', '#ffcc4d', '#2fd67b', '#3fa9ff', '#b05cff'];
+  // 球越接近洞口越亮（0~1），營造「要進了要進了」的期待感
+  function nearness(x0, x1) {
+    let n = 0;
+    balls.forEach(b => {
+      if (b.scored) return;
+      const dy = HOLE_Y - b.position.y;
+      if (dy < 0 || dy > 110) return;
+      if (b.position.x < x0 - 12 || b.position.x > x1 + 12) return;
+      n = Math.max(n, 1 - dy / 110);
+    });
+    return n;
+  }
+
+  function drawPocket(t, o) {
     // 最右側洞口的判定範圍略超出盤面，畫的時候收進框內
-    x0 = Math.max(x0, 6);
-    x1 = Math.min(x1, CANVAS_W - 6);
+    const x0 = Math.max(o.x0, 6);
+    const x1 = Math.min(o.x1, CANVAS_W - 6);
     const y0 = HOLE_Y - HOLE_H / 2, h = HOLE_H, w = x1 - x0;
+    const cx = (x0 + x1) / 2;
+    const near = reduceMotion ? 0 : nearness(x0, x1);
+    const glow = Math.max(o.glow, near * 0.9, o.flash);
+
+    ctx2d.save();
+    // 進洞時整個洞口「咕嚕」彈一下
+    if (o.bounce > 0) {
+      const k = Math.sin(o.bounce * Math.PI);
+      ctx2d.translate(cx, y0 + h);
+      // 寬的洞口（大獎合併洞口）左右少撐一點，才不會蓋到旁邊的洞口
+      ctx2d.scale(1 + 0.12 * k * Math.min(1, 50 / w), 1 - 0.1 * k);
+      ctx2d.translate(-cx, -(y0 + h));
+    }
+
+    // 洞口上方的光暈（球接近或大獎時）
+    if (glow > 0.02) {
+      const halo = ctx2d.createRadialGradient(cx, y0 + 4, 2, cx, y0 + 4, w * 0.75);
+      halo.addColorStop(0, o.color);
+      halo.addColorStop(1, clearOf(o.color));
+      ctx2d.globalAlpha = 0.55 * glow;
+      ctx2d.fillStyle = halo;
+      ctx2d.fillRect(x0 - w * 0.3, y0 - w * 0.6, w * 1.6, w * 0.9);
+      ctx2d.globalAlpha = 1;
+    }
+
+    // 外框（金屬杯緣）
     ctx2d.save();
     if (glow > 0) {
-      ctx2d.shadowColor = color;
-      ctx2d.shadowBlur = 16 * glow;
+      ctx2d.shadowColor = o.color;
+      ctx2d.shadowBlur = 18 * glow;
     }
-    roundRectPath(ctx2d, x0, y0, w, h, 8);
-    ctx2d.fillStyle = color;
+    roundRectPath(ctx2d, x0, y0, w, h, 9);
+    ctx2d.fillStyle = o.color;
     ctx2d.fill();
     ctx2d.restore();
-    // 外框立體光澤
     const gloss = ctx2d.createLinearGradient(0, y0, 0, y0 + h);
-    gloss.addColorStop(0, 'rgba(255,255,255,0.55)');
-    gloss.addColorStop(0.45, 'rgba(255,255,255,0)');
-    gloss.addColorStop(1, 'rgba(0,0,0,0.3)');
-    roundRectPath(ctx2d, x0, y0, w, h, 8);
+    gloss.addColorStop(0, 'rgba(255,255,255,0.65)');
+    gloss.addColorStop(0.4, 'rgba(255,255,255,0.05)');
+    gloss.addColorStop(1, 'rgba(0,0,0,0.35)');
+    roundRectPath(ctx2d, x0, y0, w, h, 9);
     ctx2d.fillStyle = gloss;
     ctx2d.fill();
-    // 內側洞口
-    roundRectPath(ctx2d, x0 + 3.5, y0 + 3.5, w - 7, h - 7, 5);
-    ctx2d.fillStyle = t.holeDark;
+
+    // 內側洞口：上暗下透出洞口顏色，看起來有深度
+    const ix = x0 + 3.5, iy = y0 + 5, iw = w - 7, ih = h - 8.5;
+    const well = ctx2d.createLinearGradient(0, iy, 0, iy + ih);
+    well.addColorStop(0, '#000000');
+    well.addColorStop(0.55, t.holeDark);
+    well.addColorStop(1, o.color);
+    roundRectPath(ctx2d, ix, iy, iw, ih, 6);
+    ctx2d.save();
+    ctx2d.fillStyle = well;
     ctx2d.fill();
-    // 分數標示（14px 粗體，長輩看得清楚）
-    ctx2d.fillStyle = color;
-    ctx2d.font = 'bold 14px Arial, Helvetica, sans-serif';
+    ctx2d.clip();
+    ctx2d.globalAlpha = 0.35;
+    ctx2d.fillStyle = t.holeDark;
+    ctx2d.fillRect(ix, iy + ih * 0.55, iw, ih);
+    // 光澤每隔幾秒從左掃到右
+    if (!reduceMotion) {
+      const sweep = ((frameCount * 2.4) % 760) - 140;
+      if (sweep > ix - 30 && sweep < ix + iw + 30) {
+        const band = ctx2d.createLinearGradient(sweep - 14, 0, sweep + 14, 0);
+        band.addColorStop(0, 'rgba(255,255,255,0)');
+        band.addColorStop(0.5, 'rgba(255,255,255,0.55)');
+        band.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx2d.globalAlpha = 1;
+        ctx2d.fillStyle = band;
+        ctx2d.fillRect(ix, iy, iw, ih);
+      }
+    }
+    ctx2d.restore();
+
+    // LED 跑馬燈：沿著杯緣上方一排小燈泡輪流亮
+    const bulbs = Math.max(3, Math.floor((w - 10) / 10));
+    const step = reduceMotion ? 0 : Math.floor(frameCount / (o.rainbow ? 3 : 6));
+    for (let i = 0; i < bulbs; i++) {
+      const bx = x0 + 6 + (i * (w - 12)) / (bulbs - 1);
+      const by = y0 + 2.6;
+      const lit = o.flash > 0.3 || near > 0.6 || (i + step) % 3 === 0;
+      const bc = o.rainbow ? RAINBOW[(i + step) % RAINBOW.length] : '#fff6c8';
+      if (lit) {
+        const g = ctx2d.createRadialGradient(bx, by, 0, bx, by, 6.5);
+        g.addColorStop(0, bc);
+        g.addColorStop(1, clearOf(bc));
+        ctx2d.fillStyle = g;
+        ctx2d.beginPath();
+        ctx2d.arc(bx, by, 6.5, 0, Math.PI * 2);
+        ctx2d.fill();
+      }
+      ctx2d.fillStyle = lit ? '#ffffff' : 'rgba(0,0,0,0.4)';
+      ctx2d.beginPath();
+      ctx2d.arc(bx, by, 2.1, 0, Math.PI * 2);
+      ctx2d.fill();
+    }
+
+    // 分數標示（15px 粗體加描邊，長輩看得清楚）
+    const scale = 1 + 0.18 * Math.max(near, o.bounce > 0 ? Math.sin(o.bounce * Math.PI) : 0);
+    ctx2d.save();
+    ctx2d.translate(cx, HOLE_Y + 2.5);
+    ctx2d.scale(scale, scale);
+    ctx2d.font = 'bold 15px Arial, Helvetica, sans-serif';
     ctx2d.textAlign = 'center';
     ctx2d.textBaseline = 'middle';
-    ctx2d.fillText(label, (x0 + x1) / 2, HOLE_Y + 1);
-    if (flash > 0) {
-      roundRectPath(ctx2d, x0, y0, w, h, 8);
-      ctx2d.globalAlpha = flash * 0.75;
+    ctx2d.lineJoin = 'round';
+    ctx2d.lineWidth = 3;
+    ctx2d.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx2d.strokeText(o.label, 0, 0);
+    ctx2d.fillStyle = o.flash > 0.3 ? '#ffffff' : o.color;
+    ctx2d.fillText(o.label, 0, 0);
+    ctx2d.restore();
+
+    if (o.flash > 0) {
+      roundRectPath(ctx2d, x0, y0, w, h, 9);
+      ctx2d.globalAlpha = o.flash * 0.6;
       ctx2d.fillStyle = '#ffffff';
       ctx2d.fill();
       ctx2d.globalAlpha = 1;
     }
+    ctx2d.restore();
+  }
+
+  function drawRipples() {
+    if (!ripples.length) return;
+    ctx2d.save();
+    ripples.forEach(r => {
+      const k = 1 - r.life / r.maxLife;
+      const rad = 10 + k * 34;
+      ctx2d.globalAlpha = (1 - k) * 0.85;
+      ctx2d.strokeStyle = r.color;
+      ctx2d.lineWidth = 3 * (1 - k) + 0.5;
+      ctx2d.beginPath();
+      ctx2d.ellipse(r.x, r.y, rad, rad * 0.4, 0, 0, Math.PI * 2);
+      ctx2d.stroke();
+    });
+    ctx2d.restore();
   }
 
   function drawHoles(t) {
@@ -2481,16 +2706,20 @@
       const type = hb.holeDef.type;
       if (type === 'big' && feverWide) return;
       const color = type === 'big' ? t.holeBig : type === 'small-inner' ? t.holeInner : t.holeOuter;
-      const label = '+' + SCORE_TABLE[type].normal;
-      drawPocket(t, hb.bounds.min.x, hb.bounds.max.x, color, label, hb.flash, 0);
+      const label = (type === 'big' ? '★' : '+') + SCORE_TABLE[type].normal;
+      drawPocket(t, { x0: hb.bounds.min.x, x1: hb.bounds.max.x, color, label, flash: hb.flash, bounce: hb.bounce, glow: 0 });
     });
     if (feverWide) {
       // Fever 時兩個大入洞放大後幾乎相連，合併畫成一個發光的大獎洞口
       const pulse = reduceMotion ? 0.8 : 0.6 + 0.4 * Math.sin(frameCount * 0.15);
       const flash = Math.max(bigHoles[0].flash, bigHoles[1].flash);
-      drawPocket(t, bigHoles[0].bounds.min.x, bigHoles[1].bounds.max.x, t.holeBig,
-        '★ +' + SCORE_TABLE.big.fever + ' ★', flash, pulse);
+      const bounce = Math.max(bigHoles[0].bounce, bigHoles[1].bounce);
+      drawPocket(t, {
+        x0: bigHoles[0].bounds.min.x, x1: bigHoles[1].bounds.max.x, color: t.holeBig,
+        label: '★ +' + SCORE_TABLE.big.fever + ' ★', flash, bounce, glow: pulse, rainbow: true
+      });
     }
+    drawRipples();
   }
 
   function drawBalls() {
@@ -2532,6 +2761,7 @@
     ctx2d.save();
     if (t.additive) ctx2d.globalCompositeOperation = 'lighter';
     particles.forEach(p => {
+      if (p.kind === 'coin') return;
       ctx2d.globalAlpha = Math.max(0, p.life / p.maxLife);
       ctx2d.fillStyle = p.color;
       ctx2d.beginPath();
@@ -2539,6 +2769,25 @@
       ctx2d.fill();
     });
     ctx2d.restore();
+    // 金幣不用疊加混色，明亮主題下才看得到
+    particles.forEach(p => {
+      if (p.kind !== 'coin') return;
+      const rw = Math.max(0.6, Math.abs(Math.cos(p.spin)) * p.size);
+      ctx2d.globalAlpha = Math.min(1, (p.life / p.maxLife) * 2);
+      ctx2d.fillStyle = '#b8860b';
+      ctx2d.beginPath();
+      ctx2d.ellipse(p.x, p.y, rw, p.size, 0, 0, Math.PI * 2);
+      ctx2d.fill();
+      ctx2d.fillStyle = '#ffd84d';
+      ctx2d.beginPath();
+      ctx2d.ellipse(p.x, p.y, rw * 0.75, p.size * 0.75, 0, 0, Math.PI * 2);
+      ctx2d.fill();
+      ctx2d.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx2d.beginPath();
+      ctx2d.ellipse(p.x - rw * 0.25, p.y - p.size * 0.3, rw * 0.25, p.size * 0.25, 0, 0, Math.PI * 2);
+      ctx2d.fill();
+    });
+    ctx2d.globalAlpha = 1;
   }
 
   function drawFloats(t) {
