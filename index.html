@@ -999,6 +999,14 @@
       </div>
     </div>
     <div class="settingGroup">
+      <span class="sl">店內環境音（真實柏青哥店錄音）</span>
+      <div class="btnRow">
+        <button class="toggleBtn" data-amb="off">🔕 關閉</button>
+        <button class="toggleBtn" data-amb="low">小聲</button>
+        <button class="toggleBtn" data-amb="normal">正常</button>
+      </div>
+    </div>
+    <div class="settingGroup">
       <span class="sl">音量</span>
       <div class="inline">
         <input type="range" class="range" id="volumeSlider" min="0" max="100" value="70" aria-label="音量">
@@ -1089,6 +1097,7 @@
       totalHoles: 0,
       soundOn: true,
       musicOn: false,
+      ambience: 'low',        // 店內環境音：off / low / normal
       gravity: 1.6,
       fontSize: 'normal',
       lastLoginDate: null,
@@ -1236,6 +1245,7 @@
   const fontBtns = Array.from(document.querySelectorAll('[data-font]'));
   const themeBtns = Array.from(document.querySelectorAll('[data-theme]'));
   const scaleBtns = Array.from(document.querySelectorAll('[data-scale]'));
+  const ambBtns = Array.from(document.querySelectorAll('[data-amb]'));
 
   // ---------- 計分板：數字滾動 + 增加時跳動與「+N」浮字 ----------
   const fmt = (n) => Math.round(n).toLocaleString('zh-TW');
@@ -1414,7 +1424,9 @@
   let musicTimer = null;
   let musicStep = 0;
   function playMusicStep() {
-    if (!gameState.musicOn) return;
+    if (!gameState.musicOn || rushMusic.isPlaying()) return;
+    // 分頁在背景時音訊暫停，不要累積一堆音符在恢復時同時響
+    if (audioCtx && audioCtx.state !== 'running') return;
     const c = ctx();
     const freq = MUSIC_NOTES[musicStep % MUSIC_NOTES.length];
     const osc = c.createOscillator();
@@ -1446,14 +1458,425 @@
     save.musicOn = gameState.musicOn;
     updateMusicBtn();
     persist();
-    if (gameState.musicOn) { ctx().resume && ctx().resume(); startMusic(); }
-    else stopMusic();
+    if (gameState.musicOn) {
+      ctx().resume && ctx().resume();
+      startMusic();
+      if (gameState.isFever) rushMusic.start(gameState.feverChain, false);
+    } else {
+      stopMusic();
+      rushMusic.stop();
+    }
   });
   updateMusicBtn();
   if (gameState.musicOn) startMusic();
+  // 瀏覽器規定要使用者先點一下才能出聲：第一次點畫面時建立音訊並開始環境音
   document.addEventListener('pointerdown', () => {
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    ctx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    applyAmbience();
   }, { once: true });
+
+  // ---------- 大獎時間音樂（原創 RUSH 曲，程式即時合成；連莊越連越快、越高、越多聲部） ----------
+  const rushMusic = (() => {
+    const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    // G 大調，王道進行 IV-V-iii-vi，後半 ii-V-I-V 回到開頭
+    const CHORDS = ['C', 'D', 'Bm', 'Em', 'Am', 'D', 'G', 'D'];
+    const BASS = { C: 36, D: 38, Bm: 35, Em: 40, Am: 33, G: 43 };
+    const ARP = {
+      C: [5, 9, 12, 17], D: [7, 11, 14, 19], Bm: [4, 7, 11, 16],
+      Em: [4, 9, 12, 16], Am: [2, 5, 9, 14], G: [0, 4, 7, 12]
+    };
+    // 主旋律：每小節 8 個八分音符，相對 G3 的半音，'-' 代表延長
+    const MELODY = [
+      [21, '-', 19, 21, 24, '-', 21, '-'],
+      [23, '-', 21, 19, 14, '-', 19, '-'],
+      [19, '-', 16, 19, 23, '-', 21, 19],
+      [21, '-', '-', '-', 16, '-', 19, 21],
+      [24, '-', 21, 24, 26, '-', 24, 21],
+      [23, '-', '-', 21, 19, '-', 23, '-'],
+      [24, '-', '-', '-', 26, '-', 28, '-'],
+      [26, '-', 24, '-', 23, '-', 19, '-']
+    ];
+    const LEAD_BASE = 55;
+    const SCALE = [0, 2, 4, 5, 7, 9, 11];
+    const MAX_CHAIN = 4;
+    const KEY_UP = [0, 0, 2, 4, 5];        // 第幾段升幾個半音
+    const BPM = [0, 150, 165, 172, 178];   // 連莊第 2 段直接衝到 165
+    const leadEvents = {};
+    MELODY.forEach((bar, b) => {
+      bar.forEach((n, k) => {
+        if (n === '-') return;
+        let len = 1;
+        while (k + len < 8 && bar[k + len] === '-') len++;
+        leadEvents[b * 16 + k * 2] = { n, steps: len * 2 };
+      });
+    });
+    function thirdBelow(n) {
+      const pc = ((n % 12) + 12) % 12;
+      const deg = SCALE.indexOf(pc);
+      if (deg < 0) return n - 3;
+      return n - ((pc - SCALE[(deg + 5) % 7] + 12) % 12);
+    }
+
+    let ac = null, drumBus, bassBus, arpBus, leadBus, noiseBuf;
+    function makeGain(v, dest) { const g = ac.createGain(); g.gain.value = v; g.connect(dest); return g; }
+    function setup() {
+      if (ac) return;
+      ac = ctx();
+      const comp = ac.createDynamicsCompressor();
+      comp.threshold.value = -16;
+      comp.ratio.value = 4;
+      // 整首音樂相對音效的音量
+      comp.connect(makeGain(0.4, masterGainNode));
+      drumBus = makeGain(0.85, comp);
+      bassBus = makeGain(0.5, comp);
+      arpBus = makeGain(0.13, comp);
+      leadBus = makeGain(0.3, comp);
+      const delay = ac.createDelay(1);
+      delay.delayTime.value = 0.3;
+      leadBus.connect(delay);
+      delay.connect(makeGain(0.3, delay));
+      delay.connect(makeGain(0.25, comp));
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    function env(g, t, peak, attack, hold, release) {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + attack);
+      g.gain.setValueAtTime(peak, t + attack + hold);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
+    }
+    function noise(t, dur, type, freq, q, peak, dest) {
+      const src = ac.createBufferSource();
+      src.buffer = noiseBuf;
+      const f = ac.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(peak, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f).connect(g).connect(dest);
+      src.start(t, Math.random() * 0.5);
+      src.stop(t + dur + 0.02);
+    }
+    function kick(t, peak) {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(peak || 1, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      o.connect(g).connect(drumBus);
+      o.start(t);
+      o.stop(t + 0.3);
+    }
+    function snare(t, peak) {
+      peak = peak || 1;
+      noise(t, 0.18, 'bandpass', 1900, 0.7, 0.55 * peak, drumBus);
+      const o = ac.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = 190;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.3 * peak, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+      o.connect(g).connect(drumBus);
+      o.start(t);
+      o.stop(t + 0.12);
+    }
+    function hat(t, open, peak) { noise(t, open ? 0.11 : 0.035, 'highpass', 7500, 0.5, peak, drumBus); }
+    function clap(t) { [0, 0.012, 0.024].forEach(d => noise(t + d, 0.09, 'bandpass', 1300, 1.2, 0.35, drumBus)); }
+    function crash(t) { noise(t, 1.5, 'highpass', 4500, 0.4, 0.32, drumBus); }
+    function bass(t, midi, dur) {
+      const o = ac.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = midiHz(midi);
+      const f = ac.createBiquadFilter();
+      f.type = 'lowpass';
+      f.Q.value = 5;
+      f.frequency.setValueAtTime(1800, t);
+      f.frequency.exponentialRampToValueAtTime(400, t + dur);
+      const g = ac.createGain();
+      env(g, t, 0.9, 0.005, dur * 0.6, dur * 0.35);
+      o.connect(f).connect(g).connect(bassBus);
+      o.start(t);
+      o.stop(t + dur + 0.05);
+    }
+    function arp(t, midi, dur) {
+      const o = ac.createOscillator();
+      o.type = 'square';
+      o.frequency.value = midiHz(midi);
+      const f = ac.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 2600;
+      const g = ac.createGain();
+      env(g, t, 0.6, 0.003, 0.01, dur * 0.8);
+      o.connect(f).connect(g).connect(arpBus);
+      o.start(t);
+      o.stop(t + dur + 0.05);
+    }
+    function lead(t, midi, dur, peak, bright) {
+      const g = ac.createGain();
+      env(g, t, peak || 0.7, 0.01, Math.max(0.02, dur - 0.08), 0.07);
+      const f = ac.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = bright ? 5200 : 3200;
+      f.connect(g).connect(leadBus);
+      [['sawtooth', -8], ['square', 8]].forEach(([type, cents]) => {
+        const o = ac.createOscillator();
+        o.type = type;
+        o.frequency.value = midiHz(midi);
+        o.detune.value = cents;
+        if (dur > 0.3) {
+          const lfo = ac.createOscillator();
+          lfo.frequency.value = 5.5;
+          const depth = ac.createGain();
+          depth.gain.setValueAtTime(0, t);
+          depth.gain.linearRampToValueAtTime(14, t + dur);
+          lfo.connect(depth).connect(o.detune);
+          lfo.start(t);
+          lfo.stop(t + dur + 0.1);
+        }
+        o.connect(makeGain(0.5, f));
+        o.start(t);
+        o.stop(t + dur + 0.1);
+      });
+    }
+    function riser(t) {
+      const o = ac.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(300, t);
+      o.frequency.exponentialRampToValueAtTime(2400, t + 0.45);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.35);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+      o.connect(g).connect(leadBus);
+      o.start(t);
+      o.stop(t + 0.6);
+      crash(t + 0.45);
+    }
+    function siren(t, dur) {
+      const o = ac.createOscillator();
+      o.type = 'square';
+      o.frequency.setValueAtTime(400, t);
+      o.frequency.exponentialRampToValueAtTime(1600, t + dur);
+      const lfo = ac.createOscillator();
+      lfo.frequency.value = 7;
+      const depth = ac.createGain();
+      depth.gain.value = 40;
+      lfo.connect(depth).connect(o.frequency);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + dur * 0.9);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(leadBus);
+      o.start(t);
+      lfo.start(t);
+      o.stop(t + dur + 0.05);
+      lfo.stop(t + dur + 0.05);
+    }
+
+    let state = 'off';   // off | intro | loop | outro
+    let chain = 1, pendingChain = 1, step = 0, switchStep = -1, fillPending = false;
+    let nextTime = 0, timer = null, onEnd = null;
+    const stepDur = () => 60 / BPM[chain] / 4;
+
+    function scheduleIntro(pos, t) {
+      const key = KEY_UP[chain];
+      if (pos < 12) {
+        snare(t, 0.25 + pos * 0.06);
+        arp(t, 55 + [0, 4, 7, 12, 16, 19, 24, 28, 31, 36, 40, 43][pos] + key, stepDur() * 0.9);
+      }
+      if (pos === 12) {
+        kick(t);
+        crash(t);
+        [7, 11, 14, 19].forEach(n => lead(t, LEAD_BASE + n + key, stepDur() * 3.6, 0.45));
+        bass(t, BASS.D + key, stepDur() * 3.6);
+      }
+    }
+    // 每一段連莊疊加的東西：
+    //   第 2 段：165 BPM、升 2、拍手、16 分細鈸、低音 16 分「奔馳」、主旋律三度和聲
+    //   第 3 段：172 BPM、升 4、主旋律高八度、切分大鼓、琶音高八度、音色更亮
+    //   第 4 段：178 BPM、升 5、每 4 小節小鼓連打推進＋鈸、第 8 小節警笛上衝
+    function scheduleLoop(s, t) {
+      const bar = Math.floor(s / 16) % 8;
+      const pos = s % 16;
+      const key = KEY_UP[chain];
+      const sd = stepDur();
+      const lv2 = chain >= 2, lv3 = chain >= 3, lv4 = chain >= 4;
+      if (pos === 0 && s === switchStep) {
+        crash(t);
+        crash(t + 0.03);
+        ARP[CHORDS[bar]].forEach(n => lead(t, 67 + n + key, sd * 3.5, 0.35, true));
+      }
+      if (pos % 4 === 0) kick(t);
+      if (lv3 && pos === 14) kick(t, 0.8);
+      if (pos === 4 || pos === 12) { snare(t); if (lv2) clap(t); }
+      if (pos % 4 === 2) hat(t, true, lv3 ? 0.28 : 0.22);
+      else if (lv2) hat(t, false, 0.1);
+      if (s % 128 === 0 || (lv4 && s % 64 === 0)) crash(t);
+      if (bar === 7 && pos >= 12) snare(t, 0.35 + (pos - 12) * 0.15);
+      if (lv4 && bar % 4 === 3 && pos >= 8) snare(t, 0.3 + (pos - 8) * 0.09);
+      if (fillPending && pos >= 8) snare(t, 0.35 + (pos - 8) * 0.09);
+      if (fillPending && pos === 15) fillPending = false;
+      if (lv4 && bar === 7 && pos === 0) siren(t, sd * 16);
+      if (pos % 2 === 0) bass(t, BASS[CHORDS[bar]] + (pos % 4 === 2 ? 12 : 0) + key, sd * (lv2 ? 0.9 : 1.8));
+      else if (lv2) bass(t, BASS[CHORDS[bar]] + key, sd * 0.9);
+      const tones = ARP[CHORDS[bar]];
+      arp(t, 67 + tones[pos % 4] + key + ((lv3 || (lv2 && pos >= 8)) ? 12 : 0), sd * 0.9);
+      const ev = leadEvents[s % 128];
+      if (ev) {
+        const dur = ev.steps * sd * 0.95;
+        lead(t, LEAD_BASE + ev.n + key, dur, 0.7, lv3);
+        if (lv2) lead(t, LEAD_BASE + thirdBelow(ev.n) + key, dur, 0.4, lv3);
+        if (lv3) lead(t, LEAD_BASE + ev.n + 12 + key, dur, 0.3, true);
+      }
+    }
+    function scheduleOutro(t) {
+      const key = KEY_UP[chain];
+      kick(t);
+      crash(t);
+      [12, 16, 19, 24].forEach(n => lead(t, LEAD_BASE + n + key, 1.6, 0.5));
+      bass(t, BASS.G + key, 1.6);
+      bass(t, BASS.G - 12 + key, 1.6);
+    }
+    function tick() {
+      if (ac.state !== 'running') return;
+      // 分頁從背景回來時計時器可能落後很多，直接跳到現在，不要一口氣補一堆音符
+      if (nextTime < ac.currentTime - 0.2) nextTime = ac.currentTime + 0.05;
+      while (nextTime < ac.currentTime + 0.12) {
+        const t = nextTime;
+        if (state === 'intro') {
+          scheduleIntro(step, t);
+          step++;
+          if (step >= 16) { state = 'loop'; step = 0; }
+        } else if (state === 'loop') {
+          if (step % 16 === 0 && pendingChain !== chain) { chain = pendingChain; switchStep = step; }
+          scheduleLoop(step, t);
+          step++;
+        } else if (state === 'outro') {
+          scheduleOutro(t);
+          finish();
+          setTimeout(() => { if (onEnd) onEnd(); }, 1600);
+          return;
+        }
+        nextTime += stepDur();
+      }
+    }
+    function finish() {
+      state = 'off';
+      if (timer) { clearInterval(timer); timer = null; }
+    }
+    return {
+      isPlaying: () => state !== 'off',
+      // withIntro=false：大獎時間中才打開音樂，直接從主曲開始
+      start(n, withIntro) {
+        setup();
+        chain = pendingChain = Math.min(Math.max(1, n || 1), MAX_CHAIN);
+        state = withIntro === false ? 'loop' : 'intro';
+        step = 0;
+        switchStep = -1;
+        fillPending = false;
+        nextTime = ac.currentTime + 0.05;
+        if (!timer) timer = setInterval(tick, 25);
+        applyAmbience();
+      },
+      setChain(n) {
+        if (state === 'off') return;
+        const next = Math.min(n, MAX_CHAIN);
+        if (next > pendingChain) {
+          pendingChain = next;
+          fillPending = state === 'loop';
+          riser(ac.currentTime + 0.02);
+        }
+      },
+      end(cb) {
+        if (state === 'off') { if (cb) cb(); return; }
+        onEnd = () => { onEnd = null; applyAmbience(); if (cb) cb(); };
+        state = 'outro';
+      },
+      stop() {
+        finish();
+        applyAmbience();
+      }
+    };
+  })();
+
+  // ---------- 店內環境音（真實錄音 CC0，見 audio/CREDITS.md；無縫循環＋柔化高音） ----------
+  const AMBIENCE_URL = 'audio/pachinko-ambience.mp3';
+  const AMBIENCE_RMS = { off: 0, low: 0.03, normal: 0.06 }; // 目標音量（依錄音實際響度自動換算）
+  const ambience = { state: 'idle', buffer: null, src: null, gain: null, norm: 1, el: null };
+  function decodeAudio(arr) {
+    // 舊版 Safari 只支援 callback 寫法
+    return new Promise((resolve, reject) => {
+      const r = audioCtx.decodeAudioData(arr, resolve, reject);
+      if (r && r.then) r.then(resolve, reject);
+    });
+  }
+  // 把結尾 1.5 秒淡入開頭，循環接縫聽不出來
+  function makeSeamless(buf) {
+    const xf = Math.min(Math.floor(buf.sampleRate * 1.5), Math.floor(buf.length / 4));
+    const len = buf.length - xf;
+    const out = audioCtx.createBuffer(buf.numberOfChannels, len, buf.sampleRate);
+    let sum = 0;
+    for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+      const a = buf.getChannelData(ch);
+      const o = out.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        o[i] = i < xf ? a[i] * (i / xf) + a[len + i] * (1 - i / xf) : a[i];
+        sum += o[i] * o[i];
+      }
+    }
+    ambience.norm = 1 / Math.max(0.01, Math.sqrt(sum / (len * buf.numberOfChannels)));
+    return out;
+  }
+  function loadAmbience() {
+    ambience.state = 'loading';
+    fetch(AMBIENCE_URL)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(decodeAudio)
+      .then(buf => { ambience.buffer = makeSeamless(buf); ambience.state = 'ready'; applyAmbience(); })
+      .catch(() => {
+        // 直接用 file:// 開檔時瀏覽器不允許 fetch，改用一般 <audio> 播放（沒有濾波，但聽得到）
+        ambience.state = 'fallback';
+        ambience.el = new Audio(AMBIENCE_URL);
+        ambience.el.loop = true;
+        applyAmbience();
+      });
+  }
+  function applyAmbience() {
+    const level = save.ambience || 'off';
+    // 大獎時間音樂播放中時，環境音退到後面一點
+    const duck = rushMusic.isPlaying() ? 0.55 : 1;
+    if (ambience.el) {
+      ambience.el.volume = Math.min(1, (level === 'normal' ? 0.5 : 0.25) * duck * (save.masterVolume / 100));
+      if (level === 'off' || document.hidden) ambience.el.pause();
+      else ambience.el.play().catch(() => {});
+      return;
+    }
+    if (!audioCtx) return; // 還沒點過畫面，等第一次點擊
+    if (level === 'off') {
+      if (ambience.gain) ambience.gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+      return;
+    }
+    if (ambience.state === 'idle') { loadAmbience(); return; }
+    if (ambience.state !== 'ready') return;
+    if (!ambience.src) {
+      ambience.gain = audioCtx.createGain();
+      ambience.gain.gain.value = 0;
+      const soften = audioCtx.createBiquadFilter();
+      soften.type = 'lowpass';
+      soften.frequency.value = 5000; // 柔化高音，戴助聽器也不刺耳
+      ambience.src = audioCtx.createBufferSource();
+      ambience.src.buffer = ambience.buffer;
+      ambience.src.loop = true;
+      ambience.src.connect(soften).connect(ambience.gain).connect(masterGainNode);
+      ambience.src.start();
+    }
+    ambience.gain.gain.setTargetAtTime(AMBIENCE_RMS[level] * ambience.norm * duck, audioCtx.currentTime, 0.6);
+  }
 
   // ---------- Matter.js 物理設定 ----------
   const { Engine, World, Bodies, Body, Events } = Matter;
@@ -1870,7 +2293,8 @@
     gameState.feverStepsLeft = FEVER_STEPS;
     boardWrap.classList.add('fever');
     feverBanner.classList.add('show');
-    sfxFeverStart();
+    // 有大獎音樂時由音樂的開場取代這段音效，避免兩段旋律打架
+    if (!gameState.musicOn) sfxFeverStart();
     if (again) {
       // 大獎時間中又中 777：連莊！重新計時，這輪分數繼續累積
       gameState.feverChain++;
@@ -1879,12 +2303,14 @@
       if (!reduceMotion) retrigger(feverChainEl, 'pop');
       showMessage('🎉 連莊 ' + gameState.feverChain + ' 次！大獎時間重新計時！', 'big');
       speak('連莊！太厲害了！');
+      if (gameState.musicOn) rushMusic.setChain(gameState.feverChain);
     } else {
       gameState.feverChain = 1;
       gameState.feverEarned = 0;
       feverChainEl.hidden = true;
       showMessage('🎉 777 中獎！大獎時間開始！', 'big');
       speak('恭喜！大獎時間開始！');
+      if (gameState.musicOn) rushMusic.start(1, true);
     }
     spawnFireworks();
     setBigHolesWide(true);
@@ -1899,6 +2325,7 @@
     const chainText = gameState.feverChain > 1 ? '連莊 ' + gameState.feverChain + ' 次，' : '';
     showMessage('大獎時間結束！' + chainText + '這輪共得 ' + fmt(gameState.feverEarned) + ' 分', 'win');
     gameState.feverChain = 0;
+    rushMusic.end(); // 收尾大和弦後，平常音樂自動接回來
     persist();
   }
   let lastFeverSec = -1;
@@ -2211,6 +2638,7 @@
     fontBtns.forEach(b => b.classList.toggle('active', b.dataset.font === save.fontSize));
     themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === save.theme));
     scaleBtns.forEach(b => b.classList.toggle('active', b.dataset.scale === save.uiScale));
+    ambBtns.forEach(b => b.classList.toggle('active', b.dataset.amb === save.ambience));
   }
 
   // 畫面縮放：「自動」會依視窗大小算出剛好塞滿畫面的倍率（雙欄時連高度一起考慮，發射鈕不用捲動）
@@ -2276,6 +2704,14 @@
       persist();
     });
   });
+  ambBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      save.ambience = btn.dataset.amb;
+      applyAmbience();
+      syncSettingButtons();
+      persist();
+    });
+  });
   scaleBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       save.uiScale = btn.dataset.scale;
@@ -2291,6 +2727,7 @@
     volumeValueEl.textContent = save.masterVolume;
     syncRangeFill(volumeSlider);
     if (masterGainNode) masterGainNode.gain.value = save.masterVolume / 100;
+    if (ambience.el) applyAmbience(); // 備用播放方式沒有經過 masterGain，要自己跟著調
   }
   volumeSlider.addEventListener('input', () => {
     save.masterVolume = Number(volumeSlider.value);
@@ -2413,6 +2850,7 @@
     persist();
     if (gameState.isFever) endFever();
     if (gameState.musicOn) { gameState.musicOn = false; stopMusic(); }
+    rushMusic.stop();
     updateMusicBtn();
     updateSoundBtn();
     particles = [];
@@ -2425,6 +2863,7 @@
     engine.gravity.y = save.gravity;
     nicknameInput.value = '';
     syncVolumeUi();
+    applyAmbience();
     applyFont();
     applyTheme();
     applyUiScale();
@@ -2436,8 +2875,15 @@
   // ---------- 離開頁面時存檔（iOS 不一定觸發 beforeunload，所以也聽 visibilitychange） ----------
   window.addEventListener('beforeunload', persist);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { stopFiring(); persist(); }
-    else if (!activeModal) checkNewDay();
+    if (document.hidden) {
+      stopFiring();
+      persist();
+      if (audioCtx && audioCtx.state === 'running') audioCtx.suspend();
+    } else {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      if (!activeModal) checkNewDay();
+    }
+    if (ambience.el) applyAmbience();
   });
 
   // ---------- Canvas 配色與預先繪製的圖層 ----------
