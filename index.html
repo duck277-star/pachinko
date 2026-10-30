@@ -7,380 +7,700 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
-<meta name="theme-color" content="#2a1245">
+<meta name="theme-color" content="#1c0b33">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <style>
   :root {
-    --purple-dark: #2a1245;
-    --purple-mid: #3d1a63;
-    --gold: #ffcc4d;
-    --orange: #ff8c42;
-    --text-color: #fff;
-    --score-color: #4dd8ff;
+    --bg: #1c0b33;
+    --bg-2: #2a1245;
+    --panel: #34175a;
+    --panel-deep: #1e0c38;
+    --panel-hi: #4a2380;
+    --accent: #ffcc4d;
+    --accent-2: #ff8c42;
+    --btn-1: #ffd866;
+    --btn-2: #ff8c42;
+    --text: #fff;
+    --text-muted: #cdb8f5;
+    --score: #4dd8ff;
+    --on-accent: #2a1245;
+    --line: rgba(255, 204, 77, 0.35);
+    --track: rgba(255, 255, 255, 0.16);
+    --reel-bg: #0d0518;
+    --shadow: rgba(0, 0, 0, 0.45);
+    --fs: 1;
   }
   html[data-theme="retro"] {
-    --purple-dark: #2b0a0a;
-    --purple-mid: #4a1414;
-    --gold: #ffd166;
-    --orange: #ff4d4d;
-    --text-color: #fff;
-    --score-color: #7cf29c;
+    --bg: #1f0606;
+    --bg-2: #2b0a0a;
+    --panel: #4a1414;
+    --panel-deep: #2b0a0a;
+    --panel-hi: #6a1f1f;
+    --accent: #ffd166;
+    --accent-2: #ff4d4d;
+    --btn-1: #ffd166;
+    --btn-2: #ff5a4d;
+    --text-muted: #f3c4b5;
+    --score: #7cf29c;
+    --on-accent: #2b0a0a;
+    --line: rgba(255, 209, 102, 0.35);
+    --reel-bg: #120202;
   }
   html[data-theme="day"] {
-    --purple-dark: #fff8e7;
-    --purple-mid: #fff1d6;
-    --gold: #b8860b;
-    --orange: #d2691e;
-    --text-color: #2a1245;
-    --score-color: #0077b6;
+    --bg: #f6e8cc;
+    --bg-2: #fff8e7;
+    --panel: #ffffff;
+    --panel-deep: #fff1d6;
+    --panel-hi: #fffaf0;
+    --accent: #b8860b;
+    --accent-2: #d2691e;
+    --btn-1: #ffd36b;
+    --btn-2: #ff9f43;
+    --text: #2a1245;
+    --text-muted: #6b5a80;
+    --score: #0077b6;
+    --on-accent: #2a1245;
+    --line: rgba(184, 134, 11, 0.4);
+    --track: rgba(42, 18, 69, 0.15);
+    --reel-bg: #2a1245;
+    --shadow: rgba(122, 75, 0, 0.18);
   }
+  html.fontXL { --fs: 1.22; }
+
   * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0;
-    background: var(--purple-dark);
-    color: var(--text-color);
-    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    /* 直立平板等高度有餘裕時，整個機台垂直置中；內容比畫面高時 margin:auto 會歸零，不會被裁掉 */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg);
+    background-image: radial-gradient(ellipse 120% 70% at 50% -10%, var(--panel-hi) 0%, var(--bg-2) 45%, var(--bg) 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
     overflow-x: hidden;
   }
+  button { font-family: inherit; }
+  button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--score);
+    outline-offset: 2px;
+  }
+
+  /* 版面：手機單欄；平板／桌機雙欄（左：機台，右：資訊與操作），讓發射鈕不必捲動 */
   #app {
-    max-width: 420px;
-    margin: 0 auto;
-    padding: 12px 12px 24px;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "score" "fever" "slot" "board" "msg" "dock" "controls";
     gap: 10px;
-    transform: scale(var(--ui-scale, 1));
-    transform-origin: top center;
-    transition: transform 0.2s ease;
+    width: 100%;
+    max-width: 420px;
+    margin: auto;
+    padding: 12px 12px 24px;
+    zoom: var(--ui-scale, 1);
   }
+  @media (min-width: 760px) {
+    #app {
+      max-width: none;
+      width: 760px;
+      grid-template-columns: 380px 340px;
+      column-gap: 16px;
+      grid-template-areas:
+        "slot  title"
+        "slot  score"
+        "board fever"
+        "board msg"
+        "board dock"
+        "board controls";
+      grid-template-rows: auto auto auto auto auto 1fr;
+      align-items: start;
+      padding: 12px;
+    }
+    #app #slotMachine { align-self: end; justify-self: stretch; }
+    #app #dock { position: static; margin: 0; padding: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  }
+
   h1 {
+    grid-area: title;
     text-align: center;
-    font-size: 22px;
-    margin: 4px 0;
-    color: var(--gold);
-    text-shadow: 0 0 8px rgba(255,204,77,0.5);
+    font-size: calc(22px * var(--fs));
+    margin: 2px 0;
+    letter-spacing: 1px;
+    color: var(--accent);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 50%, transparent), 0 2px 0 rgba(0, 0, 0, 0.25);
   }
+
   /* 計分板 */
-  #scoreboard {
-    display: flex;
-    justify-content: space-between;
-    background: var(--purple-mid);
-    border-radius: 12px;
-    padding: 10px 14px;
-    border: 2px solid var(--gold);
-  }
+  #scoreboard { grid-area: score; display: flex; gap: 10px; }
   .score-item {
-    text-align: center;
     flex: 1;
-    padding: 4px 6px;
-    border-radius: 10px;
+    position: relative;
+    text-align: center;
+    padding: 8px 8px 6px;
+    border-radius: 14px;
+    border: 2px solid var(--c);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, var(--panel)), var(--panel-deep));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 12px var(--shadow);
   }
-  #scoreboard .score-item:first-child { border: 2px solid var(--gold); background: rgba(255,204,77,0.08); }
-  #scoreboard .score-item:last-child { border: 2px solid var(--score-color); background: rgba(77,216,255,0.08); }
-  .score-label { font-size: 14px; color: #d8c4ff; }
-  .score-value { font-size: 32px; font-weight: bold; color: var(--gold); display: inline-block; }
-  #sessionScoreValue { color: var(--score-color); }
+  #chipsItem { --c: var(--accent); }
+  #scoreItem { --c: var(--score); }
+  .score-label { font-size: calc(14px * var(--fs)); color: var(--text-muted); font-weight: bold; }
+  .score-value {
+    display: inline-block;
+    font-size: calc(32px * var(--fs));
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--c);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 12px color-mix(in srgb, var(--c) 40%, transparent);
+  }
   .score-value.pulse { animation: scorePulse 0.4s ease; }
   @keyframes scorePulse {
     0% { transform: scale(1); }
-    35% { transform: scale(1.3); }
+    35% { transform: scale(1.25); }
     100% { transform: scale(1); }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .score-value.pulse { animation: none; }
+  .delta {
+    position: absolute;
+    right: 8px; top: 4px;
+    font-size: calc(17px * var(--fs));
+    font-weight: 800;
+    color: var(--c);
+    pointer-events: none;
+    animation: deltaUp 1.1s ease-out forwards;
   }
+  @keyframes deltaUp {
+    0% { opacity: 0; transform: translateY(8px); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-22px); }
+  }
+
+  /* Fever 橫幅 + 倒數條 */
+  #feverBanner {
+    grid-area: fever;
+    display: none;
+    position: relative;
+    overflow: hidden;
+    padding: 8px 12px 12px;
+    border-radius: 12px;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #fff;
+    font-size: calc(22px * var(--fs));
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+    background: linear-gradient(90deg, #ff3d6e, #ff8c42, #ffcc4d, #ff8c42, #ff3d6e);
+    background-size: 200% 100%;
+    box-shadow: 0 0 24px rgba(255, 140, 66, 0.6);
+    animation: feverSlide 2s linear infinite;
+  }
+  #feverBanner.show { display: flex; }
+  #feverSec {
+    min-width: 2.6em;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.3);
+    font-size: calc(18px * var(--fs));
+    font-variant-numeric: tabular-nums;
+  }
+  #feverBar {
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%; height: 6px;
+    background: rgba(255, 255, 255, 0.9);
+    transform-origin: left center;
+  }
+  @keyframes feverSlide { to { background-position: -200% 0; } }
 
   /* 老虎機 */
   #slotMachine {
+    grid-area: slot;
+    justify-self: center; /* 手機上不要撐滿寬度，聚焦放大時才不會左右被切掉 */
+    min-width: 270px;
+    position: relative;
     display: flex;
-    justify-content: center;
-    gap: 8px;
-    background: #1a0a2e;
-    border: 3px solid var(--gold);
-    border-radius: 12px;
-    padding: 10px;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px 8px;
+    border-radius: 16px;
+    border: 3px solid var(--accent);
+    background: linear-gradient(180deg, var(--panel-hi), var(--panel-deep));
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.15), 0 6px 18px var(--shadow);
+    transform-origin: 50% 0;
     transition: transform 0.35s ease, box-shadow 0.35s ease;
   }
   #slotMachine.focus {
     transform: scale(1.18);
-    box-shadow: 0 0 40px 12px rgba(255, 204, 77, 0.7);
-    position: relative;
+    box-shadow: 0 0 40px 12px color-mix(in srgb, var(--accent) 70%, transparent);
     z-index: 30;
   }
+  #reels { display: flex; gap: 8px; }
   .reel {
-    width: 64px;
-    height: 64px;
-    background: #000;
-    border-radius: 8px;
+    position: relative;
+    width: 68px; height: 68px;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 38px;
-    border: 2px solid #6a4fa0;
+    font-size: 40px;
+    border-radius: 10px;
+    border: 2px solid color-mix(in srgb, var(--accent) 55%, #000);
+    background: linear-gradient(180deg, #000 0%, var(--reel-bg) 20%, #2c1a44 50%, var(--reel-bg) 80%, #000 100%);
+    box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.7), inset 0 -6px 10px rgba(0, 0, 0, 0.7);
   }
-  #slotMachine.spinning .reel { animation: shake 0.1s infinite; }
-  @keyframes shake { 0%,100%{transform:translateY(0);} 50%{transform:translateY(2px);} }
+  .reel::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 42%);
+    pointer-events: none;
+  }
+  .reel .sym { display: block; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6)); }
+  .reel.spinning .sym { animation: reelSpin 0.14s linear infinite; filter: blur(1.2px); }
+  .reel.land .sym { animation: reelLand 0.3s ease-out; }
+  .reel.reach { border-color: #ff3d6e; animation: reachGlow 0.4s ease-in-out infinite alternate; }
+  #slotMachine.win .reel { animation: winFlash 0.25s steps(2) 6; border-color: #fff; }
+  @keyframes reelSpin {
+    0% { transform: translateY(-16px); opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { transform: translateY(16px); opacity: 0.5; }
+  }
+  @keyframes reelLand {
+    0% { transform: translateY(-12px); }
+    60% { transform: translateY(4px); }
+    100% { transform: translateY(0); }
+  }
+  @keyframes reachGlow {
+    from { box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.7), 0 0 6px 2px #ff3d6e; }
+    to { box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.7), 0 0 20px 7px #ffcc4d; }
+  }
+  @keyframes winFlash { 50% { background: var(--accent); } }
+  #holdDots {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: calc(12px * var(--fs));
+    color: var(--text-muted);
+  }
+  #holdDots i {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--track);
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  #holdDots i.on {
+    background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%);
+    box-shadow: 0 0 6px var(--accent);
+  }
 
-  /* Canvas */
+  /* 盤面：金屬機台外框 */
   #boardWrap {
+    grid-area: board;
     position: relative;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 3px solid var(--gold);
-    box-shadow: 0 0 16px rgba(255,204,77,0.3);
+    padding: 6px;
+    border-radius: 16px;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 65%, #fff), var(--accent) 35%, color-mix(in srgb, var(--accent) 55%, #000));
+    box-shadow: 0 8px 24px var(--shadow), 0 0 0 1px rgba(0, 0, 0, 0.3);
+    transition: box-shadow 0.35s ease;
   }
   canvas {
     display: block;
     width: 100%;
-    background: #241041;
+    height: auto;
+    aspect-ratio: 360 / 520;
+    border-radius: 11px;
+    background: var(--panel-deep);
     transition: filter 0.35s ease;
   }
-  #boardWrap.fever { box-shadow: 0 0 30px 6px var(--orange); }
-  #boardWrap.dim canvas { filter: brightness(0.35) saturate(0.7); }
-  @media (prefers-reduced-motion: reduce) {
-    canvas { transition: none; }
+  #boardWrap.fever { animation: feverFrame 0.8s ease-in-out infinite alternate; }
+  #boardWrap.dim canvas { filter: brightness(0.45) saturate(0.7); }
+  @keyframes feverFrame {
+    from { box-shadow: 0 0 18px 4px var(--accent-2), 0 8px 24px var(--shadow); }
+    to { box-shadow: 0 0 34px 10px #ff3d6e, 0 8px 24px var(--shadow); }
   }
 
   /* 訊息列 */
   #messageBar {
-    min-height: 22px;
+    grid-area: msg;
+    min-height: calc(46px * var(--fs));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
     text-align: center;
-    font-size: 16px;
-    color: var(--gold);
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel-deep);
+    color: var(--text);
+    font-size: calc(17px * var(--fs));
     font-weight: bold;
+  }
+  #messageBar.win { color: var(--accent); border-color: var(--accent); }
+  #messageBar.big { color: #fff; border-color: transparent; background: linear-gradient(90deg, var(--accent-2), #ff3d6e); }
+  #messageBar.miss { color: var(--text-muted); }
+  #messageBar.pop { animation: msgPop 0.35s ease; }
+  @keyframes msgPop {
+    0% { transform: scale(0.94); opacity: 0.4; }
+    60% { transform: scale(1.03); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+
+  /* 發射區：手機單欄時固定在畫面底部，邊看盤面邊按發射不用捲動 */
+  #dock {
+    grid-area: dock;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 -6px;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 -6px 16px var(--shadow);
   }
 
   /* 控制區 */
-  #controls { display: flex; flex-direction: column; gap: 10px; }
-  #powerRow { display: flex; align-items: center; gap: 10px; }
-  #powerRow label { font-size: 16px; white-space: nowrap; }
-  #powerSlider { flex: 1; height: 30px; }
-  #powerValue { font-size: 20px; font-weight: bold; min-width: 46px; text-align: right; color: var(--gold); }
-
-  #launchBtn {
-    width: 100%;
-    height: 60px;
-    font-size: 24px;
-    font-weight: bold;
-    border: none;
-    border-radius: 14px;
-    background: linear-gradient(180deg, var(--gold), var(--orange));
-    color: #2a1245;
-    cursor: pointer;
-  }
-  #launchBtn:active { transform: scale(0.98); }
-  #launchBtn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .btnRow { display: flex; gap: 8px; }
-  .smallBtn {
-    flex: 1;
-    height: 48px;
-    font-size: 16px;
-    border-radius: 10px;
-    border: 2px solid var(--gold);
-    background: var(--purple-mid);
-    color: var(--text-color);
-    cursor: pointer;
-  }
-
-  /* 統計面板 */
-  #statsPanel {
-    background: var(--purple-mid);
-    border: 2px solid var(--gold);
-    border-radius: 12px;
-    padding: 12px;
-    display: none;
-    font-size: 15px;
-    line-height: 1.9;
-  }
-  #statsPanel.show { display: block; }
-
-  /* 設定面板 */
-  #settingsPanel {
-    background: var(--purple-mid);
-    border: 2px solid var(--gold);
-    border-radius: 12px;
-    padding: 12px;
-    display: none;
+  #controls { grid-area: controls; display: flex; flex-direction: column; gap: 10px; }
+  #powerRow {
+    display: flex;
+    align-items: center;
     gap: 10px;
-    flex-direction: column;
-  }
-  #settingsPanel.show { display: flex; }
-  .settingRow { display: flex; align-items: center; gap: 10px; }
-  .settingRow > span:first-child { font-size: 16px; white-space: nowrap; width: 56px; }
-  .settingRow .btnRow { flex: 1; }
-  #volumeSlider { flex: 1; height: 30px; }
-  #volumeValue { font-size: 18px; font-weight: bold; min-width: 34px; text-align: right; color: var(--gold); }
-  #nicknameInput {
-    flex: 1;
-    height: 44px;
-    font-size: 16px;
-    border-radius: 10px;
-    border: 2px solid var(--gold);
-    background: var(--purple-dark);
-    color: var(--text-color);
-    padding: 0 12px;
-  }
-  #nicknameInput::placeholder { color: #b9a3e0; }
-  .toggleBtn {
-    flex: 1;
-    height: 44px;
-    font-size: 16px;
-    border-radius: 10px;
-    border: 2px solid var(--gold);
-    background: var(--purple-dark);
-    color: var(--text-color);
-    cursor: pointer;
-  }
-  .toggleBtn.active {
-    background: linear-gradient(180deg, var(--gold), var(--orange));
-    color: #2a1245;
-    font-weight: bold;
-  }
-
-  #xiaoMaliBtn {
-    width: 100%;
-    height: 52px;
-    font-size: 17px;
-    font-weight: bold;
-    border-radius: 12px;
-    border: 2px solid var(--gold);
-    background: linear-gradient(180deg, #ff6b9d, #c92a5b);
-    color: #fff;
-    cursor: pointer;
-  }
-  #xiaoMaliBtn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* 成就面板 */
-  #achievePanel {
-    background: var(--purple-mid);
-    border: 2px solid var(--gold);
-    border-radius: 12px;
-    padding: 12px;
-    display: none;
-    font-size: 15px;
-    line-height: 1.7;
-  }
-  #achievePanel.show { display: block; }
-  .achieveItem { opacity: 0.4; }
-  .achieveItem.unlocked { opacity: 1; color: var(--gold); }
-
-  /* 成就解鎖 Toast */
-  #achieveToast {
-    position: fixed;
-    top: 16px; left: 50%;
-    transform: translateX(-50%) translateY(-40px);
-    background: linear-gradient(180deg, var(--gold), var(--orange));
-    color: #2a1245;
-    font-weight: bold;
-    padding: 10px 18px;
-    border-radius: 10px;
-    z-index: 60;
-    opacity: 0;
-    transition: opacity 0.3s, transform 0.3s;
-    pointer-events: none;
-    max-width: 90%;
-    text-align: center;
-  }
-  #achieveToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* 小瑪莉水果盤 Modal */
-  #xiaoMaliOverlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    align-items: center; justify-content: center;
-    z-index: 55;
-  }
-  #xiaoMaliOverlay.show { display: flex; }
-  #xiaoMaliBox {
-    background: var(--purple-mid);
-    border: 3px solid var(--gold);
+    padding: 6px 14px;
     border-radius: 14px;
-    padding: 20px;
-    max-width: 340px;
-    text-align: center;
+    border: 1px solid var(--line);
+    background: var(--panel);
   }
-  #xiaoMaliBox h2 { color: var(--gold); margin: 0 0 12px; font-size: 20px; }
-  #maliGrid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-bottom: 16px;
+  #powerRow label { font-size: calc(16px * var(--fs)); font-weight: bold; white-space: nowrap; }
+  #powerValue, #volumeValue {
+    min-width: 2.4em;
+    text-align: right;
+    font-size: calc(20px * var(--fs));
+    font-weight: bold;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
   }
-  .maliCell {
-    height: 60px;
+
+  /* 大拇指好拖的滑桿 */
+  .range {
+    --pct: 50%;
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    min-width: 0;
+    height: 38px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .range::-webkit-slider-runnable-track {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--accent) var(--pct), var(--track) var(--pct));
+  }
+  .range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 30px; height: 30px;
+    margin-top: -9px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--accent) 55%, var(--accent-2));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+  .range::-moz-range-track { height: 12px; border-radius: 6px; background: var(--track); }
+  .range::-moz-range-progress { height: 12px; border-radius: 6px; background: var(--accent); }
+  .range::-moz-range-thumb {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--accent) 55%, var(--accent-2));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn3d {
+    position: relative;
+    width: 100%;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  #launchBtn {
+    min-height: calc(66px * var(--fs));
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #1a0a2e;
-    border: 2px solid #6a4fa0;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: bold;
+    gap: 1px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, var(--btn-1), var(--btn-2));
+    color: var(--on-accent);
+    font-size: calc(25px * var(--fs));
+    font-weight: 900;
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--btn-2) 55%, #000), 0 9px 18px var(--shadow), inset 0 2px 0 rgba(255, 255, 255, 0.55);
   }
-  .maliCell.center { background: #3d1a63; }
-  .maliCell.lit { border-color: var(--gold); background: var(--orange); color: #2a1245; }
-  #maliResult { min-height: 26px; font-size: 18px; color: var(--gold); font-weight: bold; margin-bottom: 12px; }
-  @media (prefers-reduced-motion: reduce) {
-    #achieveToast { transition: none; }
+  #launchBtn small { font-size: calc(13px * var(--fs)); font-weight: bold; opacity: 0.75; }
+  #launchBtn:active, #launchBtn.firing {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--btn-2) 55%, #000), 0 3px 8px var(--shadow), inset 0 2px 0 rgba(255, 255, 255, 0.55);
   }
+  #launchBtn.firing { filter: brightness(1.08); }
 
-  /* 字體大小：特大模式 */
-  #app.fontXL .score-value { font-size: 40px; }
-  #app.fontXL .score-label { font-size: 17px; }
-  #app.fontXL #messageBar { font-size: 20px; }
-  #app.fontXL #launchBtn { font-size: 28px; height: 68px; }
-  #app.fontXL .smallBtn, #app.fontXL .toggleBtn { font-size: 18px; height: 54px; }
-  #app.fontXL #powerRow label, #app.fontXL #powerValue { font-size: 20px; }
-  #app.fontXL #statsPanel, #app.fontXL .settingRow > span:first-child { font-size: 18px; }
-  #app.fontXL #xiaoMaliBtn { font-size: 19px; height: 58px; }
-  #app.fontXL #achievePanel { font-size: 17px; }
-  #app.fontXL #nicknameInput { font-size: 18px; height: 50px; }
-  #app.fontXL #volumeValue { font-size: 20px; }
-
-  /* 二次確認 Modal */
-  #confirmOverlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.6);
-    align-items: center; justify-content: center;
-    z-index: 50;
-  }
-  #confirmOverlay.show { display: flex; }
-  #confirmBox {
-    background: var(--purple-mid);
-    border: 3px solid var(--gold);
+  #xiaoMaliBtn {
+    min-height: calc(52px * var(--fs));
     border-radius: 14px;
-    padding: 24px;
-    max-width: 320px;
-    text-align: center;
-  }
-  #confirmBox p { font-size: 18px; margin-bottom: 20px; }
-  #confirmBox .btnRow { gap: 12px; }
-
-  #feverBanner {
-    display: none;
-    text-align: center;
-    font-size: 26px;
+    background: linear-gradient(180deg, #ff86b0, #d6336c);
+    color: #fff;
+    font-size: calc(18px * var(--fs));
     font-weight: bold;
-    color: var(--orange);
-    background: #1a0a2e;
-    padding: 6px;
-    border-radius: 10px;
-    animation: pulse 0.6s infinite alternate;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+    box-shadow: 0 4px 0 #8f1d47, 0 7px 14px var(--shadow), inset 0 2px 0 rgba(255, 255, 255, 0.4);
   }
-  #feverBanner.show { display: block; }
-  @keyframes pulse { from{opacity:1;} to{opacity:0.5;} }
+  #xiaoMaliBtn small { font-size: calc(14px * var(--fs)); opacity: 0.9; }
+  #xiaoMaliBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #8f1d47, 0 3px 8px var(--shadow), inset 0 2px 0 rgba(255, 255, 255, 0.4); }
+
+  #toolbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: calc(64px * var(--fs));
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+    color: var(--text);
+    font-size: calc(15px * var(--fs));
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+    transition: transform 0.08s ease, opacity 0.2s;
+  }
+  .tool .ti { font-size: calc(24px * var(--fs)); line-height: 1; }
+  .tool:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25); }
+  .tool.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), 0 3px 0 rgba(0, 0, 0, 0.25); }
+  .tool.off { opacity: 0.6; }
+
+  /* 彈出視窗（統計／成就／設定／確認／小瑪莉共用） */
+  .overlay {
+    position: fixed; inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(8, 2, 18, 0.66);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+  .overlay.show { opacity: 1; visibility: visible; }
+  .modal {
+    zoom: var(--ui-scale, 1);
+    width: 100%;
+    max-width: 360px;
+    max-height: calc(88vh / var(--ui-scale, 1));
+    overflow-y: auto;
+    padding: 16px 18px 18px;
+    border-radius: 18px;
+    border: 3px solid var(--accent);
+    background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    transform: scale(0.92) translateY(10px);
+    transition: transform 0.22s cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+  .overlay.show .modal { transform: none; }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .modal-head h2 { margin: 0; font-size: calc(21px * var(--fs)); color: var(--accent); }
+  .closeX {
+    flex: none;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    background: var(--panel-deep);
+    color: var(--text);
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .smallBtn, .toggleBtn {
+    flex: 1;
+    min-height: calc(48px * var(--fs));
+    padding: 4px 6px;
+    border-radius: 12px;
+    border: 2px solid var(--line);
+    background: var(--panel-deep);
+    color: var(--text);
+    font-size: calc(16px * var(--fs));
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .smallBtn.primary, .toggleBtn.active {
+    border-color: transparent;
+    background: linear-gradient(180deg, var(--btn-1), var(--btn-2));
+    color: var(--on-accent);
+  }
+  .smallBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btnRow { display: flex; gap: 8px; }
+
+  /* 統計 */
+  .statGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat {
+    padding: 10px 6px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--panel-deep);
+    text-align: center;
+    font-size: calc(14px * var(--fs));
+    color: var(--text-muted);
+  }
+  .stat b {
+    display: block;
+    margin-top: 2px;
+    font-size: calc(24px * var(--fs));
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 成就 */
+  #achieveList { display: flex; flex-direction: column; gap: 8px; }
+  .achieveItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--panel-deep);
+  }
+  .achieveItem .ai { font-size: 30px; filter: grayscale(1); opacity: 0.5; }
+  .achieveItem.unlocked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel-deep)); }
+  .achieveItem.unlocked .ai { filter: none; opacity: 1; }
+  .achieveItem .ab { flex: 1; min-width: 0; }
+  .achieveItem .an { font-size: calc(17px * var(--fs)); font-weight: bold; }
+  .achieveItem.unlocked .an { color: var(--accent); }
+  .achieveItem .ad { font-size: calc(14px * var(--fs)); color: var(--text-muted); }
+  .progress { height: 8px; margin-top: 6px; border-radius: 4px; background: var(--track); overflow: hidden; }
+  .progress > i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--btn-1), var(--btn-2)); }
+  .achieveItem .as { min-width: 6.5em; text-align: right; font-size: calc(13px * var(--fs)); color: var(--text-muted); white-space: nowrap; }
+
+  /* 設定 */
+  .settingGroup { margin-bottom: 14px; }
+  .settingGroup:last-child { margin-bottom: 0; }
+  .settingGroup > .sl { display: block; margin-bottom: 6px; font-size: calc(15px * var(--fs)); font-weight: bold; color: var(--text-muted); }
+  .settingGroup .inline { display: flex; align-items: center; gap: 10px; }
+  .toggleBtn { font-size: calc(15px * var(--fs)); }
+  .toggleBtn .sw {
+    display: inline-block;
+    width: 14px; height: 14px;
+    margin-right: 4px;
+    border-radius: 50%;
+    vertical-align: -2px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+  }
+  #nicknameInput {
+    width: 100%;
+    height: calc(48px * var(--fs));
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 2px solid var(--line);
+    background: var(--panel-deep);
+    color: var(--text);
+    font-size: calc(17px * var(--fs));
+    font-family: inherit;
+  }
+  #nicknameInput::placeholder { color: var(--text-muted); opacity: 0.8; }
+
+  /* 確認視窗 */
+  #confirmBox p { margin: 0 0 20px; font-size: calc(18px * var(--fs)); line-height: 1.6; text-align: center; }
+
+  /* 小瑪莉水果盤 */
+  #maliGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .maliCell {
+    height: 76px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 12px;
+    border: 2px solid color-mix(in srgb, var(--accent) 35%, #000);
+    background: var(--reel-bg);
+    color: #fff;
+    transition: transform 0.08s, background 0.08s;
+  }
+  .maliCell .f { font-size: 28px; line-height: 1; }
+  .maliCell .p { font-size: calc(16px * var(--fs)); font-weight: bold; color: #ffcc4d; }
+  .maliCell.center { background: linear-gradient(180deg, #ff86b0, #d6336c); border-color: #ffd1e1; }
+  .maliCell.center .p { color: #fff; font-size: calc(14px * var(--fs)); }
+  .maliCell.lit {
+    transform: scale(1.06);
+    border-color: #fff;
+    background: radial-gradient(circle, #fff6cf, #ffcc4d 60%, #ff8c42);
+    box-shadow: 0 0 16px #ffcc4d;
+  }
+  .maliCell.lit .p { color: #2a1245; }
+  .maliCell.final { animation: maliWin 0.3s steps(2) 5; }
+  @keyframes maliWin { 50% { background: #fff; } }
+  #maliResult {
+    min-height: 30px;
+    margin-bottom: 12px;
+    text-align: center;
+    font-size: calc(18px * var(--fs));
+    font-weight: bold;
+    color: var(--accent);
+  }
+
+  /* 提示 Toast（成就／每日禮） */
+  #toast {
+    position: fixed;
+    top: 14px; left: 50%;
+    z-index: 60;
+    zoom: var(--ui-scale, 1);
+    max-width: 90%;
+    padding: 12px 20px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, var(--btn-1), var(--btn-2));
+    color: var(--on-accent);
+    font-size: calc(17px * var(--fs));
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-40px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   @media (prefers-reduced-motion: reduce) {
-    #slotMachine.spinning .reel { animation: none; }
-    #feverBanner { animation: none; }
+    .score-value.pulse, .delta, #messageBar.pop, .reel.land .sym,
+    #feverBanner, #boardWrap.fever, .reel.spinning .sym, .maliCell.final { animation: none; }
+    .reel.reach { animation: none; box-shadow: 0 0 14px 5px #ffcc4d; }
+    #slotMachine.win .reel { animation: none; background: var(--accent); }
+    .reel.spinning .sym { filter: none; }
+    canvas, #slotMachine, .overlay, .modal, #toast { transition: none; }
   }
 </style>
 </head>
@@ -389,144 +709,173 @@
   <h1>🎰 柏青哥 Pachinko 🎰</h1>
 
   <div id="scoreboard">
-    <div class="score-item">
-      <div class="score-label">籌碼</div>
-      <div class="score-value" id="chipsValue">1000</div>
+    <div class="score-item" id="chipsItem">
+      <div class="score-label">🪙 籌碼</div>
+      <div class="score-value" id="chipsValue">0</div>
     </div>
-    <div class="score-item">
-      <div class="score-label">本次得分</div>
+    <div class="score-item" id="scoreItem">
+      <div class="score-label">⭐ 本次得分</div>
       <div class="score-value" id="sessionScoreValue">0</div>
     </div>
   </div>
 
-  <div id="feverBanner">🔥 FEVER TIME 🔥</div>
+  <div id="feverBanner" role="status">
+    <span>🔥 FEVER 大入洞 ×3 🔥</span>
+    <span id="feverSec">30 秒</span>
+    <div id="feverBar"></div>
+  </div>
 
   <div id="slotMachine">
-    <div class="reel" id="reel0">🍒</div>
-    <div class="reel" id="reel1">🍋</div>
-    <div class="reel" id="reel2">⭐</div>
+    <div id="reels">
+      <div class="reel"><span class="sym">🍒</span></div>
+      <div class="reel"><span class="sym">🍋</span></div>
+      <div class="reel"><span class="sym">⭐</span></div>
+    </div>
+    <div id="holdDots" aria-label="保留次數"><span>保留</span><i></i><i></i><i></i><i></i></div>
   </div>
 
   <div id="boardWrap">
-    <canvas id="board" width="360" height="520"></canvas>
+    <canvas id="board" width="360" height="520" aria-label="柏青哥盤面"></canvas>
   </div>
 
-  <div id="messageBar">按「發射」讓彈珠落下吧！</div>
+  <div id="messageBar" role="status" aria-live="polite"></div>
 
-  <div id="controls">
+  <div id="dock">
     <div id="powerRow">
       <label for="powerSlider">力道</label>
-      <input type="range" id="powerSlider" min="0" max="100" value="50">
+      <input type="range" class="range" id="powerSlider" min="0" max="100" value="50">
       <span id="powerValue">50</span>
     </div>
-    <button id="launchBtn">🚀 發射（按住可連發）</button>
-    <div class="btnRow">
-      <button class="smallBtn" id="soundBtn">🔊 音效</button>
-      <button class="smallBtn" id="statsBtn">📊 統計</button>
-    </div>
-    <div class="btnRow">
-      <button class="smallBtn" id="settingsBtn">⚙️ 設定</button>
-      <button class="smallBtn" id="resetBtn">🔄 重新開始</button>
-    </div>
-    <div class="btnRow">
-      <button class="smallBtn" id="musicBtn">🎵 音樂</button>
-      <button class="smallBtn" id="achieveBtn">🏆 成就</button>
-    </div>
-    <button id="xiaoMaliBtn">🍓 小瑪莉水果盤（20 籌碼）</button>
+    <button class="btn3d" id="launchBtn"><span>🚀 發射</span><small>每顆 5 籌碼・按住可連發</small></button>
   </div>
 
-  <div id="statsPanel">
-    <div>歷史總得分：<b id="statTotalScore">0</b></div>
-    <div>歷史 Fever 次數：<b id="statTotalFever">0</b></div>
-    <div>歷史發射彈珠數：<b id="statTotalBalls">0</b></div>
+  <div id="controls">
+    <button class="btn3d" id="xiaoMaliBtn">🍓 小瑪莉水果盤 <small>（20 籌碼）</small></button>
+    <div id="toolbar">
+      <button class="tool" id="soundBtn"><span class="ti">🔊</span><span class="tl">音效</span></button>
+      <button class="tool" id="musicBtn"><span class="ti">🎵</span><span class="tl">音樂</span></button>
+      <button class="tool" id="statsBtn"><span class="ti">📊</span><span class="tl">統計</span></button>
+      <button class="tool" id="achieveBtn"><span class="ti">🏆</span><span class="tl">成就</span></button>
+      <button class="tool" id="settingsBtn"><span class="ti">⚙️</span><span class="tl">設定</span></button>
+      <button class="tool" id="resetBtn"><span class="ti">🔄</span><span class="tl">重新開始</span></button>
+    </div>
   </div>
+</div>
 
-  <div id="achievePanel"></div>
+<div class="overlay" id="statsOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-labelledby="statsTitle">
+    <div class="modal-head"><h2 id="statsTitle">📊 遊玩統計</h2><button class="closeX" data-close aria-label="關閉">✕</button></div>
+    <div class="statGrid">
+      <div class="stat">歷史總得分<b id="statTotalScore">0</b></div>
+      <div class="stat">Fever 次數<b id="statTotalFever">0</b></div>
+      <div class="stat">發射彈珠數<b id="statTotalBalls">0</b></div>
+      <div class="stat">入洞次數<b id="statTotalHoles">0</b></div>
+      <div class="stat">入洞率<b id="statHitRate">0%</b></div>
+      <div class="stat">小瑪莉次數<b id="statMaliPlays">0</b></div>
+    </div>
+  </div>
+</div>
 
-  <div id="settingsPanel">
-    <div class="settingRow">
-      <span>速度</span>
+<div class="overlay" id="achieveOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-labelledby="achieveTitle">
+    <div class="modal-head"><h2 id="achieveTitle">🏆 成就</h2><button class="closeX" data-close aria-label="關閉">✕</button></div>
+    <div id="achieveList"></div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-labelledby="settingsTitle">
+    <div class="modal-head"><h2 id="settingsTitle">⚙️ 設定</h2><button class="closeX" data-close aria-label="關閉">✕</button></div>
+    <div class="settingGroup">
+      <span class="sl">彈珠速度</span>
       <div class="btnRow">
-        <button class="toggleBtn" data-gravity="1.2">慢</button>
+        <button class="toggleBtn" data-gravity="1.2">🐢 慢</button>
         <button class="toggleBtn" data-gravity="1.6">中</button>
-        <button class="toggleBtn" data-gravity="2.0">快</button>
+        <button class="toggleBtn" data-gravity="2.0">🐇 快</button>
       </div>
     </div>
-    <div class="settingRow">
-      <span>字體</span>
+    <div class="settingGroup">
+      <span class="sl">字體大小</span>
       <div class="btnRow">
         <button class="toggleBtn" data-font="normal">大</button>
         <button class="toggleBtn" data-font="xl">特大</button>
       </div>
     </div>
-    <div class="settingRow">
-      <span>配色</span>
+    <div class="settingGroup">
+      <span class="sl">配色</span>
       <div class="btnRow">
-        <button class="toggleBtn" data-theme="classic">經典</button>
-        <button class="toggleBtn" data-theme="retro">復古紅</button>
-        <button class="toggleBtn" data-theme="day">明亮</button>
+        <button class="toggleBtn" data-theme="classic"><i class="sw" style="background:linear-gradient(135deg,#3d1a63 50%,#ffcc4d 50%)"></i>經典</button>
+        <button class="toggleBtn" data-theme="retro"><i class="sw" style="background:linear-gradient(135deg,#4a1414 50%,#ff4d4d 50%)"></i>復古紅</button>
+        <button class="toggleBtn" data-theme="day"><i class="sw" style="background:linear-gradient(135deg,#fff8e7 50%,#b8860b 50%)"></i>明亮</button>
       </div>
     </div>
-    <div class="settingRow">
-      <span>縮放</span>
+    <div class="settingGroup">
+      <span class="sl">畫面縮放</span>
       <div class="btnRow">
+        <button class="toggleBtn" data-scale="auto">自動</button>
         <button class="toggleBtn" data-scale="small">小</button>
         <button class="toggleBtn" data-scale="normal">中</button>
         <button class="toggleBtn" data-scale="large">大</button>
         <button class="toggleBtn" data-scale="xl">特大</button>
       </div>
     </div>
-    <div class="settingRow">
-      <span>音量</span>
-      <input type="range" id="volumeSlider" min="0" max="100" value="70">
-      <span id="volumeValue">70</span>
+    <div class="settingGroup">
+      <span class="sl">音量</span>
+      <div class="inline">
+        <input type="range" class="range" id="volumeSlider" min="0" max="100" value="70" aria-label="音量">
+        <span id="volumeValue">70</span>
+      </div>
     </div>
-    <div class="settingRow">
-      <span>暱稱</span>
+    <div class="settingGroup">
+      <span class="sl">暱稱（開場問候用）</span>
       <input type="text" id="nicknameInput" maxlength="10" placeholder="輸入暱稱（選填）">
     </div>
   </div>
 </div>
 
-<div id="confirmOverlay">
-  <div id="confirmBox">
+<div class="overlay" id="confirmOverlay" aria-hidden="true">
+  <div class="modal" id="confirmBox" role="alertdialog">
     <p>確定要重新開始嗎？<br>目前籌碼與紀錄將會清空。</p>
     <div class="btnRow">
       <button class="smallBtn" id="confirmYes">確定重來</button>
-      <button class="smallBtn" id="confirmNo">取消</button>
+      <button class="smallBtn primary" data-close>取消</button>
     </div>
   </div>
 </div>
 
-<div id="xiaoMaliOverlay">
-  <div id="xiaoMaliBox">
-    <h2>🍓 小瑪莉水果盤</h2>
+<div class="overlay" id="xiaoMaliOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-labelledby="maliTitle">
+    <div class="modal-head"><h2 id="maliTitle">🍓 小瑪莉水果盤</h2><button class="closeX" data-close aria-label="關閉">✕</button></div>
     <div id="maliGrid">
-      <div class="maliCell" data-idx="0">30</div>
-      <div class="maliCell" data-idx="1">50</div>
-      <div class="maliCell" data-idx="2">100</div>
-      <div class="maliCell" data-idx="3">20</div>
-      <div class="maliCell center" data-idx="4">🍓</div>
-      <div class="maliCell" data-idx="5">80</div>
-      <div class="maliCell" data-idx="6">80</div>
-      <div class="maliCell" data-idx="7">50</div>
-      <div class="maliCell" data-idx="8">200</div>
+      <div class="maliCell" data-idx="0"><span class="f">🍎</span><span class="p">30</span></div>
+      <div class="maliCell" data-idx="1"><span class="f">🍊</span><span class="p">50</span></div>
+      <div class="maliCell" data-idx="2"><span class="f">🍉</span><span class="p">100</span></div>
+      <div class="maliCell" data-idx="3"><span class="f">🍋</span><span class="p">20</span></div>
+      <div class="maliCell center" data-idx="4"><span class="f">🍓</span><span class="p">小瑪莉</span></div>
+      <div class="maliCell" data-idx="5"><span class="f">🍇</span><span class="p">80</span></div>
+      <div class="maliCell" data-idx="6"><span class="f">🔔</span><span class="p">80</span></div>
+      <div class="maliCell" data-idx="7"><span class="f">🍒</span><span class="p">50</span></div>
+      <div class="maliCell" data-idx="8"><span class="f">⭐</span><span class="p">200</span></div>
     </div>
     <div id="maliResult">燈號跑動中，看它停在哪一格！</div>
     <div class="btnRow">
-      <button class="smallBtn" id="maliCloseBtn">關閉</button>
+      <button class="smallBtn primary" id="maliAgainBtn">🔁 再玩一次</button>
+      <button class="smallBtn" id="maliCloseBtn" data-close>關閉</button>
     </div>
   </div>
 </div>
 
-<div id="achieveToast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
   'use strict';
 
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   // ---------- 存檔 ----------
   const SAVE_KEY = 'pachinko_save_v1';
+  const LAYOUT_VERSION = 2;
   function todayStr() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -555,20 +904,33 @@
       masterVolume: 70,
       nickname: '',
       theme: 'classic',
-      uiScale: null
+      uiScale: 'auto',
+      missStreak: 0,
+      layoutVersion: LAYOUT_VERSION
     };
   }
-  const existingSave = loadSave();
-  let save = Object.assign(defaultSave(), existingSave || {});
-  if (!existingSave) {
-    // 首次開啟：依螢幕寬度自動選擇合適的畫面縮放，桌機大螢幕預設放大填滿版面
-    if (window.innerWidth >= 1200) save.uiScale = 'xl';
-    else if (window.innerWidth >= 860) save.uiScale = 'large';
-    else save.uiScale = 'normal';
+  let save = Object.assign(defaultSave(), loadSave() || {});
+  // 版面改成響應式雙欄後，舊版依螢幕寬度選的縮放常讓發射鈕跑出畫面外，升級時統一改回「自動」一次
+  if (save.layoutVersion !== LAYOUT_VERSION) {
+    save.uiScale = 'auto';
+    save.layoutVersion = LAYOUT_VERSION;
   }
-  if (!save.uiScale) save.uiScale = 'normal';
+
+  // ---------- 遊戲狀態 ----------
+  const gameState = {
+    chips: save.chips,
+    sessionScore: 0,
+    feverCount: 0,
+    isFever: false,
+    feverStepsLeft: 0,
+    missStreak: save.missStreak || 0,
+    soundOn: save.soundOn,
+    musicOn: save.musicOn,
+  };
 
   function persist() {
+    save.chips = gameState.chips;
+    save.missStreak = gameState.missStreak;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
   }
 
@@ -576,11 +938,11 @@
   let dailyGiftMsg = null;
   const today = todayStr();
   if (save.lastLoginDate !== today) {
-    save.chips += 1000;
+    gameState.chips += 1000;
     save.lastLoginDate = today;
     dailyGiftMsg = '🎁 每日禮 +1000 籌碼！';
-    persist();
   }
+  persist();
 
   // 時段問候
   function getGreetingWord() {
@@ -596,59 +958,59 @@
     return name + getGreetingWord() + '！';
   }
 
-  // ---------- 遊戲狀態 ----------
-  const gameState = {
-    chips: save.chips,
-    sessionScore: 0,
-    feverCount: 0,
-    isFever: false,
-    feverEndTime: null,
-    missStreak: 0,
-    soundOn: save.soundOn,
-    musicOn: save.musicOn,
-  };
-
   // ---------- DOM ----------
-  const chipsValueEl = document.getElementById('chipsValue');
-  const sessionScoreValueEl = document.getElementById('sessionScoreValue');
-  const messageBarEl = document.getElementById('messageBar');
-  const launchBtn = document.getElementById('launchBtn');
-  const powerSlider = document.getElementById('powerSlider');
-  const powerValueEl = document.getElementById('powerValue');
-  const soundBtn = document.getElementById('soundBtn');
-  const statsBtn = document.getElementById('statsBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const statsPanel = document.getElementById('statsPanel');
-  const boardWrap = document.getElementById('boardWrap');
-  const feverBanner = document.getElementById('feverBanner');
-  const slotMachineEl = document.getElementById('slotMachine');
-  const reelEls = [document.getElementById('reel0'), document.getElementById('reel1'), document.getElementById('reel2')];
-  const confirmOverlay = document.getElementById('confirmOverlay');
-  const confirmYes = document.getElementById('confirmYes');
-  const confirmNo = document.getElementById('confirmNo');
-  const statTotalScore = document.getElementById('statTotalScore');
-  const statTotalFever = document.getElementById('statTotalFever');
-  const statTotalBalls = document.getElementById('statTotalBalls');
-  const settingsBtn = document.getElementById('settingsBtn');
-  const settingsPanel = document.getElementById('settingsPanel');
-  const appEl = document.getElementById('app');
+  const $ = (id) => document.getElementById(id);
+  const chipsValueEl = $('chipsValue');
+  const sessionScoreValueEl = $('sessionScoreValue');
+  const chipsItem = $('chipsItem');
+  const scoreItem = $('scoreItem');
+  const messageBarEl = $('messageBar');
+  const launchBtn = $('launchBtn');
+  const powerSlider = $('powerSlider');
+  const powerValueEl = $('powerValue');
+  const soundBtn = $('soundBtn');
+  const musicBtn = $('musicBtn');
+  const statsBtn = $('statsBtn');
+  const achieveBtn = $('achieveBtn');
+  const settingsBtn = $('settingsBtn');
+  const resetBtn = $('resetBtn');
+  const boardWrap = $('boardWrap');
+  const feverBanner = $('feverBanner');
+  const feverSecEl = $('feverSec');
+  const feverBarEl = $('feverBar');
+  const slotMachineEl = $('slotMachine');
+  const reelEls = Array.from(document.querySelectorAll('.reel'));
+  const symEls = reelEls.map(r => r.querySelector('.sym'));
+  const holdDotEls = Array.from(document.querySelectorAll('#holdDots i'));
+  const statsOverlay = $('statsOverlay');
+  const achieveOverlay = $('achieveOverlay');
+  const settingsOverlay = $('settingsOverlay');
+  const confirmOverlay = $('confirmOverlay');
+  const xiaoMaliOverlay = $('xiaoMaliOverlay');
+  const confirmYes = $('confirmYes');
+  const achieveList = $('achieveList');
+  const toastEl = $('toast');
+  const xiaoMaliBtn = $('xiaoMaliBtn');
+  const maliAgainBtn = $('maliAgainBtn');
+  const maliCloseBtn = $('maliCloseBtn');
+  const maliResult = $('maliResult');
+  const maliCells = Array.from(document.querySelectorAll('.maliCell'));
+  const volumeSlider = $('volumeSlider');
+  const volumeValueEl = $('volumeValue');
+  const nicknameInput = $('nicknameInput');
+  const appEl = $('app');
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
   const gravityBtns = Array.from(document.querySelectorAll('[data-gravity]'));
   const fontBtns = Array.from(document.querySelectorAll('[data-font]'));
-  const musicBtn = document.getElementById('musicBtn');
-  const achieveBtn = document.getElementById('achieveBtn');
-  const achievePanel = document.getElementById('achievePanel');
-  const achieveToast = document.getElementById('achieveToast');
-  const xiaoMaliBtn = document.getElementById('xiaoMaliBtn');
-  const xiaoMaliOverlay = document.getElementById('xiaoMaliOverlay');
-  const maliCloseBtn = document.getElementById('maliCloseBtn');
-  const maliResult = document.getElementById('maliResult');
-  const maliCells = Array.from(document.querySelectorAll('.maliCell'));
-  const volumeSlider = document.getElementById('volumeSlider');
-  const volumeValueEl = document.getElementById('volumeValue');
-  const nicknameInput = document.getElementById('nicknameInput');
   const themeBtns = Array.from(document.querySelectorAll('[data-theme]'));
   const scaleBtns = Array.from(document.querySelectorAll('[data-scale]'));
 
+  // ---------- 計分板：數字滾動 + 增加時跳動與「+N」浮字 ----------
+  const fmt = (n) => Math.round(n).toLocaleString('zh-TW');
+  const hud = {
+    chips: { el: chipsValueEl, shown: gameState.chips },
+    score: { el: sessionScoreValueEl, shown: 0 }
+  };
   let lastChips = gameState.chips;
   let lastSessionScore = gameState.sessionScore;
   function pulseValue(el) {
@@ -656,20 +1018,75 @@
     void el.offsetWidth; // 強制 reflow，讓動畫可以重新觸發
     el.classList.add('pulse');
   }
+  function popDelta(item, amount) {
+    if (reduceMotion) return;
+    const d = document.createElement('span');
+    d.className = 'delta';
+    d.textContent = '+' + fmt(amount);
+    item.appendChild(d);
+    setTimeout(() => d.remove(), 1150);
+  }
   function updateHud() {
-    if (gameState.chips !== lastChips) { pulseValue(chipsValueEl); lastChips = gameState.chips; }
-    if (gameState.sessionScore !== lastSessionScore) { pulseValue(sessionScoreValueEl); lastSessionScore = gameState.sessionScore; }
-    chipsValueEl.textContent = gameState.chips;
-    sessionScoreValueEl.textContent = gameState.sessionScore;
-    statTotalScore.textContent = save.totalScore;
-    statTotalFever.textContent = save.totalFever;
-    statTotalBalls.textContent = save.totalBalls;
+    // 只在「增加」時跳動，避免每次發射扣籌碼都閃一下
+    const dc = gameState.chips - lastChips;
+    if (dc > 0) { pulseValue(chipsValueEl); popDelta(chipsItem, dc); }
+    lastChips = gameState.chips;
+    const ds = gameState.sessionScore - lastSessionScore;
+    if (ds > 0) { pulseValue(sessionScoreValueEl); popDelta(scoreItem, ds); }
+    lastSessionScore = gameState.sessionScore;
   }
-  function showMessage(msg) {
+  function tickHud() {
+    [[hud.chips, gameState.chips], [hud.score, gameState.sessionScore]].forEach(([h, target]) => {
+      if (h.shown === target) return;
+      const diff = target - h.shown;
+      let step = diff * 0.2;
+      if (Math.abs(step) < 1) step = Math.sign(diff);
+      h.shown = reduceMotion || Math.abs(step) >= Math.abs(diff) ? target : h.shown + step;
+      h.el.textContent = fmt(h.shown);
+    });
+  }
+  chipsValueEl.textContent = fmt(gameState.chips);
+
+  // ---------- 訊息列（重要訊息短暫保護，不會立刻被「掉出去了」蓋掉） ----------
+  const MSG_PRIORITY = { miss: 0, info: 1, win: 2, big: 3 };
+  let msgShownAt = 0;
+  let msgPriority = 0;
+  function showMessage(msg, type) {
+    type = type || 'info';
+    const p = MSG_PRIORITY[type];
+    const now = performance.now();
+    if (p < msgPriority && now - msgShownAt < 1600) return;
+    msgPriority = p;
+    msgShownAt = now;
     messageBarEl.textContent = msg;
+    messageBarEl.className = type;
+    if (!reduceMotion) {
+      void messageBarEl.offsetWidth;
+      messageBarEl.classList.add('pop');
+    }
   }
-  updateHud();
-  showMessage(dailyGiftMsg ? buildGreeting() + ' ' + dailyGiftMsg : buildGreeting());
+
+  // ---------- Toast（依序顯示，不互相覆蓋） ----------
+  const toastQueue = [];
+  let toastBusy = false;
+  function showToast(text) {
+    toastQueue.push(text);
+    if (!toastBusy) nextToast();
+  }
+  function nextToast() {
+    const text = toastQueue.shift();
+    if (!text) { toastBusy = false; return; }
+    toastBusy = true;
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    setTimeout(() => {
+      toastEl.classList.remove('show');
+      setTimeout(nextToast, 350);
+    }, 2400);
+  }
+
+  showMessage(buildGreeting() + ' 按「發射」讓彈珠落下吧！');
+  if (dailyGiftMsg) setTimeout(() => showToast(dailyGiftMsg), 400);
   nicknameInput.value = save.nickname || '';
 
   // ---------- 音效（Web Audio 合成） ----------
@@ -717,6 +1134,7 @@
   function sfxAchieve() { tone(880, 0, 0.1, 'sine'); tone(1175, 0.1, 0.1, 'sine'); tone(1568, 0.2, 0.25, 'sine'); }
   function sfxMaliTick() { tone(600, 0, 0.04, 'square', 0.06); }
   function sfxMaliWin() { tone(523, 0, 0.1, 'triangle'); tone(659, 0.1, 0.1, 'triangle'); tone(784, 0.2, 0.1, 'triangle'); tone(1047, 0.3, 0.25, 'triangle'); }
+  function sfxReach() { [523, 587, 659, 698, 784, 880].forEach((f, i) => tone(f, i * 0.07, 0.08, 'square', 0.08)); }
 
   // ---------- 語音回饋（Web Speech API） ----------
   function speak(text) {
@@ -732,13 +1150,24 @@
     } catch (e) {}
   }
 
+  function setTool(btn, icon, label, state) {
+    btn.querySelector('.ti').textContent = icon;
+    btn.querySelector('.tl').textContent = label;
+    btn.classList.toggle('on', state === 'on');
+    btn.classList.toggle('off', state === 'off');
+    btn.setAttribute('aria-pressed', state === 'on' ? 'true' : 'false');
+  }
+  function updateSoundBtn() {
+    if (gameState.soundOn) setTool(soundBtn, '🔊', '音效 開', 'on');
+    else setTool(soundBtn, '🔇', '靜音', 'off');
+  }
   soundBtn.addEventListener('click', () => {
     gameState.soundOn = !gameState.soundOn;
     save.soundOn = gameState.soundOn;
-    soundBtn.textContent = gameState.soundOn ? '🔊 音效' : '🔇 靜音';
+    updateSoundBtn();
     persist();
   });
-  soundBtn.textContent = gameState.soundOn ? '🔊 音效' : '🔇 靜音';
+  updateSoundBtn();
 
   // ---------- 背景音樂（Web Audio 循環合成） ----------
   const MUSIC_NOTES = [523, 659, 784, 659, 587, 698, 880, 698];
@@ -769,7 +1198,8 @@
     if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   }
   function updateMusicBtn() {
-    musicBtn.textContent = gameState.musicOn ? '🎵 音樂中' : '🎵 音樂';
+    if (gameState.musicOn) setTool(musicBtn, '🎵', '音樂 開', 'on');
+    else setTool(musicBtn, '🎵', '音樂 關', 'off');
   }
   musicBtn.addEventListener('click', () => {
     gameState.musicOn = !gameState.musicOn;
@@ -786,7 +1216,7 @@
   }, { once: true });
 
   // ---------- Matter.js 物理設定 ----------
-  const { Engine, World, Bodies, Body, Events, Composite } = Matter;
+  const { Engine, World, Bodies, Body, Events } = Matter;
   const engine = Engine.create();
   engine.gravity.y = save.gravity;
   // 提高求解迭代次數，減少小彈珠高速穿過釘子的「穿模」問題
@@ -794,7 +1224,7 @@
   engine.velocityIterations = 12;
 
   const CANVAS_W = 360, CANVAS_H = 520;
-  const canvas = document.getElementById('board');
+  const canvas = $('board');
   const ctx2d = canvas.getContext('2d');
 
   const world = engine.world;
@@ -824,6 +1254,7 @@
         friction: 0.05,
         label: 'pin'
       });
+      pin.flash = 0;
       pins.push(pin);
     }
   }
@@ -848,59 +1279,80 @@
       label: 'hole:' + h.type
     });
     body.holeDef = h;
+    body.flash = 0;
     return body;
   });
   World.add(world, holeBodies);
+  const bigHoles = holeBodies.filter(hb => hb.holeDef.type === 'big');
 
   // ---------- 彈珠管理 ----------
   const balls = [];
   const BALL_RADIUS = 8;
-  const BALL_COLORS = ['#ff6b6b', '#feca57', '#48dbfb', '#1dd1a1', '#ff9ff3', '#f6e58d'];
+  const BALL_COLORS = [
+    { c: '#ff6b6b', s: '#a82424' },
+    { c: '#feca57', s: '#a8730a' },
+    { c: '#48dbfb', s: '#0a7699' },
+    { c: '#1dd1a1', s: '#0a7354' },
+    { c: '#ff9ff3', s: '#a8429b' },
+    { c: '#f6e58d', s: '#9e9023' }
+  ];
   const TRAIL_LENGTH = 10;
-  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const BALL_MAX_AGE = 25000; // 極少數情況彈珠卡在釘子上，超過時間自動回收
 
-  // ---------- Fever 煙火／彩帶粒子特效 ----------
+  // ---------- 粒子特效（Fever 煙火、大入洞火花） ----------
   const PARTICLE_COLORS = ['#ffcc4d', '#ff6b6b', '#48dbfb', '#1dd1a1', '#ff9ff3', '#ff8c42'];
   let particles = [];
-  function spawnFireworks() {
+  function spawnBurst(x, y, count, speedMin, speedMax, colors) {
     if (reduceMotion) return;
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 4;
+      const speed = speedMin + Math.random() * (speedMax - speedMin);
+      const life = 40 + Math.random() * 35;
       particles.push({
-        x: CANVAS_W / 2 + (Math.random() * 60 - 30),
-        y: 120 + Math.random() * 60,
+        x, y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - 1,
-        color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
-        life: 50 + Math.random() * 30,
-        maxLife: 80
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 2 + Math.random() * 1.8,
+        life,
+        maxLife: life
       });
     }
+  }
+  function spawnFireworks() {
+    spawnBurst(CANVAS_W / 2 + (Math.random() * 60 - 30), 120 + Math.random() * 60, 50, 2, 6, PARTICLE_COLORS);
   }
   function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.x += p.vx;
       p.y += p.vy;
+      p.vx *= 0.985;
       p.vy += 0.08;
       p.life--;
       if (p.life <= 0) particles.splice(i, 1);
     }
   }
-  function renderParticles() {
-    particles.forEach(p => {
-      ctx2d.globalAlpha = Math.max(0, p.life / p.maxLife);
-      ctx2d.fillStyle = p.color;
-      ctx2d.beginPath();
-      ctx2d.arc(p.x, p.y, 3, 0, Math.PI * 2);
-      ctx2d.fill();
-    });
-    ctx2d.globalAlpha = 1;
+
+  // ---------- 入洞浮字（+50 從洞口往上飄） ----------
+  let floats = [];
+  function spawnFloat(x, y, text, color) {
+    floats.push({ x, y, text, color, life: 60, maxLife: 60 });
+  }
+  function updateFloats() {
+    for (let i = floats.length - 1; i >= 0; i--) {
+      const f = floats[i];
+      if (!reduceMotion) f.y -= 0.7;
+      f.life--;
+      if (f.life <= 0) floats.splice(i, 1);
+    }
   }
 
+  function spawnXForPower(power) {
+    return 340 - (power / 100) * 260;
+  }
   function spawnBall(power) {
-    const spawnX = 340 - (power / 100) * 260 + (Math.random() * 10 - 5);
+    const spawnX = spawnXForPower(power) + (Math.random() * 10 - 5);
     const ball = Bodies.circle(spawnX, 30, BALL_RADIUS, {
       restitution: 0.55,
       friction: 0.02,
@@ -925,6 +1377,8 @@
 
   // ---------- 老虎機 ----------
   const SYMBOLS = ['7️⃣', '🍒', '🍋', '⭐', '🔔', '🍇', '💎'];
+  const MAX_HOLD = 4; // 轉動中又入洞時先「保留」，轉完依序補轉（仿真實機台）
+  const holdQueue = [];
   let slotSpinning = false;
 
   function countSymbol(arr, sym) { return arr.filter(s => s === sym).length; }
@@ -939,13 +1393,32 @@
     }
     return r;
   }
+  function renderHoldDots() {
+    holdDotEls.forEach((d, i) => d.classList.toggle('on', i < holdQueue.length));
+  }
+  function retrigger(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
 
   function spinSlot(winProb) {
-    if (slotSpinning) return;
+    if (slotSpinning) {
+      if (holdQueue.length < MAX_HOLD) {
+        holdQueue.push(winProb);
+        renderHoldDots();
+      }
+      return;
+    }
+    runSpin(winProb);
+  }
+
+  function runSpin(winProb) {
     slotSpinning = true;
-    slotMachineEl.classList.add('spinning');
+    slotMachineEl.classList.remove('win');
     slotMachineEl.classList.add('focus');
-    boardWrap.classList.add('dim');
+    // Fever 中盤面才是主角，不壓暗；保留連轉時也就不會讓盤面長時間變暗
+    boardWrap.classList.toggle('dim', !gameState.isFever);
 
     const forceWin = gameState.missStreak >= 40;
     let result;
@@ -965,136 +1438,191 @@
       }
     }
 
+    // 「就差一個」演出：前兩格已是 7 或櫻桃時，最後一格放慢停，增加期待感
+    const reach = result[0] === result[1] && (result[0] === '7️⃣' || result[0] === '🍒');
+    const stopDelays = reach ? [600, 1000, 2600] : [600, 1000, 1400];
+
     const spinIntervals = [];
     reelEls.forEach((el, i) => {
+      el.classList.remove('land', 'reach');
+      el.classList.add('spinning');
       spinIntervals[i] = setInterval(() => {
-        el.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        symEls[i].textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
       }, 70);
     });
 
-    const stopDelays = [600, 1000, 1400];
     reelEls.forEach((el, i) => {
       setTimeout(() => {
         clearInterval(spinIntervals[i]);
-        el.textContent = result[i];
-        if (i === reelEls.length - 1) {
-          slotSpinning = false;
-          slotMachineEl.classList.remove('spinning');
-          const sevenCount = countSymbol(result, '7️⃣');
-          const cherryCount = countSymbol(result, '🍒');
-          if (sevenCount === 3) {
-            gameState.missStreak = 0;
-            sfx777();
-            showMessage('🎉 777 中獎！進入 FEVER！');
-            startFever();
-          } else if (cherryCount === 3) {
-            gameState.missStreak++;
-            gameState.chips += 100;
-            save.chips = gameState.chips;
-            sfxSmallWin();
-            speak('小獎中囉！');
-            showMessage('🍒🍒🍒 櫻桃連線！+100 籌碼');
-            updateHud();
-            persist();
-          } else if (sevenCount === 2) {
-            gameState.missStreak++;
-            gameState.chips += 50;
-            save.chips = gameState.chips;
-            sfxSmallWin();
-            showMessage('7️⃣7️⃣ 雙 7 小獎！+50 籌碼');
-            updateHud();
-            persist();
-          } else {
-            gameState.missStreak++;
-            sfxMiss();
-            showMessage('可惜，再試一次！');
-          }
-          checkAchievements();
-          setTimeout(() => {
-            slotMachineEl.classList.remove('focus');
-            boardWrap.classList.remove('dim');
-          }, 500);
+        el.classList.remove('spinning', 'reach');
+        symEls[i].textContent = result[i];
+        if (!reduceMotion) retrigger(el, 'land');
+        if (i === 1 && reach) {
+          reelEls[2].classList.add('reach');
+          showMessage('🔥 就差一個！🔥', 'big');
+          sfxReach();
         }
+        if (i === reelEls.length - 1) finishSpin(result);
       }, stopDelays[i]);
     });
   }
 
-  // ---------- Fever ----------
-  let feverTimer = null;
+  function finishSpin(result) {
+    const sevenCount = countSymbol(result, '7️⃣');
+    const cherryCount = countSymbol(result, '🍒');
+    let isWin = true;
+    if (sevenCount === 3) {
+      gameState.missStreak = 0;
+      sfx777();
+      showMessage('🎉 777 中獎！進入 FEVER！', 'big');
+      startFever();
+      boardWrap.classList.remove('dim');
+    } else if (cherryCount === 3) {
+      gameState.missStreak++;
+      gameState.chips += 100;
+      sfxSmallWin();
+      speak('小獎中囉！');
+      showMessage('🍒🍒🍒 櫻桃連線！+100 籌碼', 'win');
+    } else if (sevenCount === 2) {
+      gameState.missStreak++;
+      gameState.chips += 50;
+      sfxSmallWin();
+      showMessage('7️⃣7️⃣ 雙 7 小獎！+50 籌碼', 'win');
+    } else {
+      isWin = false;
+      gameState.missStreak++;
+      sfxMiss();
+      showMessage('可惜，再試一次！', 'miss');
+    }
+    if (isWin) slotMachineEl.classList.add('win');
+    updateHud();
+    persist();
+    checkAchievements();
+    setTimeout(() => {
+      slotSpinning = false;
+      if (holdQueue.length) {
+        const next = holdQueue.shift();
+        renderHoldDots();
+        runSpin(next);
+      } else {
+        slotMachineEl.classList.remove('focus', 'win');
+        boardWrap.classList.remove('dim');
+      }
+    }, isWin ? 1200 : 500);
+  }
+
+  // ---------- Fever（以物理步數倒數，切到背景分頁時會暫停，不會偷偷結束） ----------
+  const FEVER_STEPS = 30 * 60;
+  let feverMix = 0; // 0~1，Canvas 上 Fever 演出的淡入淡出程度
+  function setBigHolesWide(wide) {
+    bigHoles.forEach(hb => {
+      if (wide && !hb.scaledUp) { Body.scale(hb, 1.3, 1.0); hb.scaledUp = true; }
+      if (!wide && hb.scaledUp) { Body.scale(hb, 1 / 1.3, 1.0); hb.scaledUp = false; }
+    });
+  }
   function startFever() {
     gameState.isFever = true;
     gameState.feverCount++;
     save.totalFever++;
-    gameState.feverEndTime = Date.now() + 30000;
+    gameState.feverStepsLeft = FEVER_STEPS;
     boardWrap.classList.add('fever');
     feverBanner.classList.add('show');
     sfxFeverStart();
     speak('恭喜！進入 Fever！');
     spawnFireworks();
-
-    // 大入洞開口變大
-    holeBodies.forEach(hb => {
-      if (hb.holeDef.type === 'big' && !hb.scaledUp) {
-        Body.scale(hb, 1.3, 1.0);
-        hb.scaledUp = true;
-      }
-    });
-
-    if (feverTimer) clearTimeout(feverTimer);
-    feverTimer = setTimeout(endFever, 30000);
+    setBigHolesWide(true);
     persist();
   }
   function endFever() {
     gameState.isFever = false;
-    gameState.feverEndTime = null;
+    gameState.feverStepsLeft = 0;
     boardWrap.classList.remove('fever');
     feverBanner.classList.remove('show');
-    holeBodies.forEach(hb => {
-      if (hb.holeDef.type === 'big' && hb.scaledUp) {
-        Body.scale(hb, 1 / 1.3, 1.0);
-        hb.scaledUp = false;
-      }
-    });
-    showMessage('Fever 結束，繼續加油！');
+    setBigHolesWide(false);
+    showMessage('Fever 結束，繼續加油！', 'info');
+    persist();
+  }
+  let lastFeverSec = -1;
+  function updateFeverBanner() {
+    if (!gameState.isFever) return;
+    const sec = Math.ceil(gameState.feverStepsLeft / 60);
+    if (sec !== lastFeverSec) { feverSecEl.textContent = sec + ' 秒'; lastFeverSec = sec; }
+    feverBarEl.style.transform = 'scaleX(' + (gameState.feverStepsLeft / FEVER_STEPS).toFixed(3) + ')';
   }
 
   // ---------- 成就系統 ----------
   const ACHIEVEMENTS = [
-    { id: 'firstFever', icon: '🔥', name: '首次 Fever', desc: '第一次進入 Fever 模式', check: () => save.totalFever >= 1 },
-    { id: 'hundredHits', icon: '🎯', name: '百發百中', desc: '累計入洞達 100 次', check: () => save.totalHoles >= 100 },
-    { id: 'feverMaster', icon: '⚡', name: '電光石火', desc: '累計 Fever 達 10 次', check: () => save.totalFever >= 10 },
-    { id: 'richChips', icon: '💰', name: '籌碼大亨', desc: '籌碼達 5000', check: () => gameState.chips >= 5000 },
-    { id: 'maliFan', icon: '🍓', name: '水果盤達人', desc: '玩過 5 次小瑪莉', check: () => save.maliPlays >= 5 },
+    { id: 'firstFever', icon: '🔥', name: '首次 Fever', desc: '第一次進入 Fever 模式', progress: () => [save.totalFever, 1] },
+    { id: 'hundredHits', icon: '🎯', name: '百發百中', desc: '累計入洞達 100 次', progress: () => [save.totalHoles, 100] },
+    { id: 'feverMaster', icon: '⚡', name: '電光石火', desc: '累計 Fever 達 10 次', progress: () => [save.totalFever, 10] },
+    { id: 'richChips', icon: '💰', name: '籌碼大亨', desc: '籌碼達 5000', progress: () => [gameState.chips, 5000] },
+    { id: 'maliFan', icon: '🍓', name: '水果盤達人', desc: '玩過 5 次小瑪莉', progress: () => [save.maliPlays, 5] },
   ];
-  let achieveToastTimer = null;
   function unlockAchievement(a) {
     sfxAchieve();
-    achieveToast.textContent = '🏆 達成成就：' + a.name;
-    achieveToast.classList.add('show');
-    if (achieveToastTimer) clearTimeout(achieveToastTimer);
-    achieveToastTimer = setTimeout(() => achieveToast.classList.remove('show'), 2500);
+    showToast('🏆 達成成就：' + a.icon + ' ' + a.name);
   }
   function renderAchievements() {
-    achievePanel.innerHTML = ACHIEVEMENTS.map(a => {
+    achieveList.innerHTML = ACHIEVEMENTS.map(a => {
       const unlocked = !!save.achievements[a.id];
-      return '<div class="achieveItem' + (unlocked ? ' unlocked' : '') + '">' + a.icon + ' ' + a.name + '：' + a.desc + (unlocked ? ' ✅' : ' 🔒') + '</div>';
+      const [cur, goal] = a.progress();
+      const pct = Math.min(100, Math.round((cur / goal) * 100));
+      const status = unlocked ? '✅ 已達成' : fmt(Math.min(cur, goal)) + ' / ' + fmt(goal);
+      return '<div class="achieveItem' + (unlocked ? ' unlocked' : '') + '">' +
+        '<span class="ai">' + a.icon + '</span>' +
+        '<div class="ab"><div class="an">' + a.name + '</div><div class="ad">' + a.desc + '</div>' +
+        (unlocked ? '' : '<div class="progress"><i style="width:' + pct + '%"></i></div>') +
+        '</div><span class="as">' + status + '</span></div>';
     }).join('');
   }
   function checkAchievements() {
     let changed = false;
     ACHIEVEMENTS.forEach(a => {
-      if (!save.achievements[a.id] && a.check()) {
+      const [cur, goal] = a.progress();
+      if (!save.achievements[a.id] && cur >= goal) {
         save.achievements[a.id] = true;
         unlockAchievement(a);
         changed = true;
       }
     });
-    if (changed) { renderAchievements(); persist(); }
+    if (changed) persist();
   }
-  achieveBtn.addEventListener('click', () => {
-    achievePanel.classList.toggle('show');
+
+  // ---------- 彈出視窗 ----------
+  let activeModal = null;
+  function openModal(ov) {
+    stopFiring();
+    if (activeModal && activeModal !== ov) closeModal(activeModal);
+    ov.classList.add('show');
+    ov.setAttribute('aria-hidden', 'false');
+    activeModal = ov;
+    const first = ov.querySelector('.closeX, .smallBtn.primary');
+    if (first) first.focus({ preventScroll: true });
+  }
+  function closeModal(ov) {
+    if (ov === xiaoMaliOverlay && maliSpinning) return;
+    ov.classList.remove('show');
+    ov.setAttribute('aria-hidden', 'true');
+    if (activeModal === ov) activeModal = null;
+  }
+  document.querySelectorAll('.overlay').forEach(ov => {
+    ov.addEventListener('click', (e) => { if (e.target === ov) closeModal(ov); });
   });
-  renderAchievements();
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.closest('.overlay')));
+  });
+
+  function renderStats() {
+    $('statTotalScore').textContent = fmt(save.totalScore);
+    $('statTotalFever').textContent = fmt(save.totalFever);
+    $('statTotalBalls').textContent = fmt(save.totalBalls);
+    $('statTotalHoles').textContent = fmt(save.totalHoles);
+    $('statHitRate').textContent = (save.totalBalls ? Math.round((save.totalHoles / save.totalBalls) * 100) : 0) + '%';
+    $('statMaliPlays').textContent = fmt(save.maliPlays);
+  }
+  statsBtn.addEventListener('click', () => { renderStats(); openModal(statsOverlay); });
+  achieveBtn.addEventListener('click', () => { renderAchievements(); openModal(achieveOverlay); });
+  settingsBtn.addEventListener('click', () => openModal(settingsOverlay));
 
   // ---------- 入洞處理 ----------
   const SCORE_TABLE = {
@@ -1108,20 +1636,24 @@
     const table = SCORE_TABLE[type];
     const score = gameState.isFever ? table.fever : table.normal;
     const pan = (holeBody.position.x / CANVAS_W) * 2 - 1;
+    const theme = currentTheme();
 
     gameState.sessionScore += score;
     save.totalScore += score;
     save.totalHoles++;
+    holeBody.flash = 1;
+    spawnFloat(Math.max(24, Math.min(CANVAS_W - 24, ball.position.x)), HOLE_Y - 22, '+' + score, type === 'big' ? theme.holeBig : '#ffffff');
 
     if (type === 'big') {
       sfxBigHole(pan);
-      showMessage('🎯 大入洞！+' + score + ' 分');
+      showMessage('🎯 大入洞！+' + score + ' 分', 'win');
+      spawnBurst(ball.position.x, HOLE_Y - 8, gameState.isFever ? 26 : 14, 1.5, 4, ['#ffcc4d', '#fff1b8', '#ff8c42']);
       if (!gameState.isFever) {
         spinSlot(0.35);
       }
     } else {
       sfxSmallHole(pan);
-      showMessage('✨ 入洞！+' + score + ' 分');
+      showMessage('✨ 入洞！+' + score + ' 分', 'info');
       spinSlot(0.08);
     }
 
@@ -1133,12 +1665,15 @@
   Events.on(engine, 'collisionStart', (event) => {
     event.pairs.forEach(pair => {
       const { bodyA, bodyB } = pair;
-      let ballBody = null, holeBody = null;
-      if (bodyA.label === 'ball' && String(bodyB.label).startsWith('hole:')) { ballBody = bodyA; holeBody = bodyB; }
-      else if (bodyB.label === 'ball' && String(bodyA.label).startsWith('hole:')) { ballBody = bodyB; holeBody = bodyA; }
-      if (ballBody && holeBody && !ballBody.scored) {
+      let ballBody = null, other = null;
+      if (bodyA.label === 'ball') { ballBody = bodyA; other = bodyB; }
+      else if (bodyB.label === 'ball') { ballBody = bodyB; other = bodyA; }
+      if (!ballBody) return;
+      if (other.label === 'pin') {
+        other.flash = 1;
+      } else if (String(other.label).startsWith('hole:') && !ballBody.scored) {
         ballBody.scored = true;
-        handleHole(ballBody, holeBody);
+        handleHole(ballBody, other);
         setTimeout(() => removeBall(ballBody), 80);
       }
     });
@@ -1148,9 +1683,8 @@
   function checkAutoRefill() {
     if (gameState.chips < 50) {
       gameState.chips += 500;
-      save.chips = gameState.chips;
       sfxRefill();
-      showMessage('🧧 幸運紅包！+500 籌碼');
+      showMessage('🧧 幸運紅包！+500 籌碼', 'win');
       persist();
       updateHud();
     }
@@ -1164,7 +1698,6 @@
       if (gameState.chips < BALL_COST) return;
     }
     gameState.chips -= BALL_COST;
-    save.chips = gameState.chips;
     sfxLaunch();
     spawnBall(Number(powerSlider.value));
     updateHud();
@@ -1172,37 +1705,108 @@
     checkAutoRefill();
   }
 
-  launchBtn.addEventListener('click', launchBall);
-  document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') {
-      e.preventDefault();
-      launchBall();
-    }
+  // ---------- 連續發射模式（按住不放自動連發；滑鼠、觸控、空白鍵共用） ----------
+  const AUTO_FIRE_DELAY = 400;
+  const AUTO_FIRE_INTERVAL = 500;
+  let autoFireTimeout = null;
+  let autoFireInterval = null;
+  function startFiring() {
+    stopFiring();
+    launchBall();
+    launchBtn.classList.add('firing');
+    autoFireTimeout = setTimeout(() => {
+      autoFireInterval = setInterval(launchBall, AUTO_FIRE_INTERVAL);
+    }, AUTO_FIRE_DELAY);
+  }
+  function stopFiring() {
+    if (autoFireTimeout) { clearTimeout(autoFireTimeout); autoFireTimeout = null; }
+    if (autoFireInterval) { clearInterval(autoFireInterval); autoFireInterval = null; }
+    launchBtn.classList.remove('firing');
+  }
+  launchBtn.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    // 指標擷取：手指稍微滑出按鈕也不會中斷連發
+    try { launchBtn.setPointerCapture(e.pointerId); } catch (err) {}
+    startFiring();
   });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(evt => {
+    launchBtn.addEventListener(evt, stopFiring);
+  });
+  // 指標按下時已發射；這裡只處理鍵盤 Enter 觸發的 click（detail 為 0）
+  launchBtn.addEventListener('click', (e) => { if (e.detail === 0) launchBall(); });
+  launchBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  window.addEventListener('blur', stopFiring);
+
+  function isTypingTarget(el) {
+    return el && el.tagName === 'INPUT' && el.type === 'text';
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && activeModal) { closeModal(activeModal); return; }
+    if (e.code !== 'Space' || activeModal || isTypingTarget(e.target)) return;
+    e.preventDefault();
+    if (e.repeat) return;
+    startFiring();
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space' || isTypingTarget(e.target)) return;
+    stopFiring();
+    if (!activeModal) e.preventDefault();
+  });
+
+  function syncRangeFill(slider) {
+    slider.style.setProperty('--pct', slider.value + '%');
+  }
   powerSlider.addEventListener('input', () => {
     powerValueEl.textContent = powerSlider.value;
+    syncRangeFill(powerSlider);
   });
+  syncRangeFill(powerSlider);
 
-  // ---------- 統計面板 ----------
-  statsBtn.addEventListener('click', () => {
-    statsPanel.classList.toggle('show');
-  });
-
-  // ---------- 設定面板：速度 / 字體 ----------
-  settingsBtn.addEventListener('click', () => {
-    settingsPanel.classList.toggle('show');
-  });
-
+  // ---------- 設定 ----------
   function syncSettingButtons() {
     gravityBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.gravity) === save.gravity));
     fontBtns.forEach(b => b.classList.toggle('active', b.dataset.font === save.fontSize));
     themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === save.theme));
     scaleBtns.forEach(b => b.classList.toggle('active', b.dataset.scale === save.uiScale));
   }
+
+  // 畫面縮放：「自動」會依視窗大小算出剛好塞滿畫面的倍率（雙欄時連高度一起考慮，發射鈕不用捲動）
   const UI_SCALES = { small: 0.85, normal: 1, large: 1.25, xl: 1.5 };
-  function applyUiScale() {
-    document.documentElement.style.setProperty('--ui-scale', UI_SCALES[save.uiScale] || 1);
+  const twoColQuery = window.matchMedia('(min-width: 760px)');
+  function computeAutoScale() {
+    const root = document.documentElement;
+    root.style.setProperty('--ui-scale', 1);
+    const rect = appEl.getBoundingClientRect();
+    const vw = root.clientWidth;
+    const vh = window.innerHeight;
+    if (!twoColQuery.matches) return Math.max(1, Math.min(1.3, vw / rect.width));
+    return Math.max(0.75, Math.min(1.8, vw / rect.width, (vh - 4) / rect.height));
   }
+  function applyUiScale() {
+    const s = save.uiScale === 'auto' || !UI_SCALES[save.uiScale] ? computeAutoScale() : UI_SCALES[save.uiScale];
+    document.documentElement.style.setProperty('--ui-scale', s.toFixed(3));
+  }
+  let resizeQueued = false;
+  window.addEventListener('resize', () => {
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      if (save.uiScale === 'auto') applyUiScale();
+      resizeCanvas();
+    });
+  });
+
+  const THEME_META = { classic: '#1c0b33', retro: '#1f0606', day: '#f6e8cc' };
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', save.theme);
+    themeMeta.setAttribute('content', THEME_META[save.theme] || THEME_META.classic);
+    buildLayers();
+  }
+  function applyFont() {
+    document.documentElement.classList.toggle('fontXL', save.fontSize === 'xl');
+  }
+
   gravityBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const g = Number(btn.dataset.gravity);
@@ -1215,7 +1819,8 @@
   fontBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       save.fontSize = btn.dataset.font;
-      appEl.classList.toggle('fontXL', save.fontSize === 'xl');
+      applyFont();
+      if (save.uiScale === 'auto') applyUiScale();
       syncSettingButtons();
       persist();
     });
@@ -1223,7 +1828,7 @@
   themeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       save.theme = btn.dataset.theme;
-      document.documentElement.setAttribute('data-theme', save.theme);
+      applyTheme();
       syncSettingButtons();
       persist();
     });
@@ -1236,45 +1841,26 @@
       persist();
     });
   });
-  appEl.classList.toggle('fontXL', save.fontSize === 'xl');
-  document.documentElement.setAttribute('data-theme', save.theme);
-  applyUiScale();
-  syncSettingButtons();
 
   // ---------- 音量滑桿 ----------
-  volumeSlider.value = save.masterVolume;
-  volumeValueEl.textContent = save.masterVolume;
+  function syncVolumeUi() {
+    volumeSlider.value = save.masterVolume;
+    volumeValueEl.textContent = save.masterVolume;
+    syncRangeFill(volumeSlider);
+    if (masterGainNode) masterGainNode.gain.value = save.masterVolume / 100;
+  }
   volumeSlider.addEventListener('input', () => {
     save.masterVolume = Number(volumeSlider.value);
-    volumeValueEl.textContent = save.masterVolume;
-    if (masterGainNode) masterGainNode.gain.value = save.masterVolume / 100;
+    syncVolumeUi();
     persist();
   });
+  syncVolumeUi();
 
   // ---------- 玩家暱稱 ----------
   nicknameInput.addEventListener('change', () => {
     save.nickname = nicknameInput.value.trim().slice(0, 10);
     nicknameInput.value = save.nickname;
     persist();
-  });
-
-  // ---------- 連續發射模式（按住不放自動連發） ----------
-  const AUTO_FIRE_DELAY = 400;
-  const AUTO_FIRE_INTERVAL = 500;
-  let autoFireTimeout = null;
-  let autoFireInterval = null;
-  function stopAutoFire() {
-    if (autoFireTimeout) { clearTimeout(autoFireTimeout); autoFireTimeout = null; }
-    if (autoFireInterval) { clearInterval(autoFireInterval); autoFireInterval = null; }
-  }
-  launchBtn.addEventListener('pointerdown', () => {
-    stopAutoFire();
-    autoFireTimeout = setTimeout(() => {
-      autoFireInterval = setInterval(launchBall, AUTO_FIRE_INTERVAL);
-    }, AUTO_FIRE_DELAY);
-  });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
-    launchBtn.addEventListener(evt, stopAutoFire);
   });
 
   // ---------- 小瑪莉水果盤（Phase 4 加值內容） ----------
@@ -1295,6 +1881,13 @@
     }
     return MALI_RING[0];
   }
+  function maliCell(idx) {
+    return maliCells.find(c => Number(c.dataset.idx) === idx);
+  }
+  function setMaliButtons() {
+    maliAgainBtn.disabled = maliSpinning;
+    maliCloseBtn.disabled = maliSpinning;
+  }
 
   function openMali() {
     if (maliSpinning) return;
@@ -1303,26 +1896,26 @@
       if (gameState.chips < MALI_COST) return;
     }
     gameState.chips -= MALI_COST;
-    save.chips = gameState.chips;
     save.maliPlays++;
     updateHud();
     persist();
 
-    maliCells.forEach(c => c.classList.remove('lit'));
+    maliCells.forEach(c => c.classList.remove('lit', 'final'));
     maliResult.textContent = '燈號跑動中，看它停在哪一格！';
-    xiaoMaliOverlay.classList.add('show');
+    if (activeModal !== xiaoMaliOverlay) openModal(xiaoMaliOverlay);
     maliSpinning = true;
+    setMaliButtons();
 
     const targetIdx = pickMaliIndex();
 
     function finishMali() {
       maliCells.forEach(c => c.classList.remove('lit'));
-      const cellEl = maliCells.find(c => Number(c.dataset.idx) === targetIdx);
-      if (cellEl) cellEl.classList.add('lit');
+      const cellEl = maliCell(targetIdx);
+      if (cellEl) cellEl.classList.add('lit', 'final');
       maliSpinning = false;
+      setMaliButtons();
       const prize = MALI_PRIZES[targetIdx];
       gameState.chips += prize;
-      save.chips = gameState.chips;
       gameState.sessionScore += prize;
       save.totalScore += prize;
       updateHud();
@@ -1347,8 +1940,7 @@
     function tick() {
       if (step >= totalSteps) { finishMali(); return; }
       maliCells.forEach(c => c.classList.remove('lit'));
-      const cellIdx = MALI_RING[step % MALI_RING.length];
-      const cellEl = maliCells.find(c => Number(c.dataset.idx) === cellIdx);
+      const cellEl = maliCell(MALI_RING[step % MALI_RING.length]);
       if (cellEl) cellEl.classList.add('lit');
       sfxMaliTick();
       step++;
@@ -1360,58 +1952,201 @@
   }
 
   xiaoMaliBtn.addEventListener('click', openMali);
-  maliCloseBtn.addEventListener('click', () => {
-    if (maliSpinning) return;
-    xiaoMaliOverlay.classList.remove('show');
-  });
+  maliAgainBtn.addEventListener('click', openMali);
 
   // ---------- 重新開始（二次確認） ----------
-  resetBtn.addEventListener('click', () => {
-    confirmOverlay.classList.add('show');
-  });
-  confirmNo.addEventListener('click', () => {
-    confirmOverlay.classList.remove('show');
-  });
+  resetBtn.addEventListener('click', () => openModal(confirmOverlay));
   confirmYes.addEventListener('click', () => {
-    confirmOverlay.classList.remove('show');
+    closeModal(confirmOverlay);
     save = defaultSave();
     save.lastLoginDate = todayStr();
-    save.uiScale = 'normal';
-    persist();
     gameState.chips = save.chips;
     gameState.sessionScore = 0;
     gameState.feverCount = 0;
     gameState.missStreak = 0;
+    gameState.soundOn = save.soundOn;
     lastChips = gameState.chips;
     lastSessionScore = gameState.sessionScore;
+    persist();
     if (gameState.isFever) endFever();
-    if (gameState.musicOn) { gameState.musicOn = false; stopMusic(); updateMusicBtn(); }
+    if (gameState.musicOn) { gameState.musicOn = false; stopMusic(); }
+    updateMusicBtn();
+    updateSoundBtn();
     particles = [];
+    floats = [];
+    holdQueue.length = 0;
+    renderHoldDots();
     balls.slice().forEach(removeBall);
-    renderAchievements();
+    engine.gravity.y = save.gravity;
     nicknameInput.value = '';
-    volumeSlider.value = save.masterVolume;
-    volumeValueEl.textContent = save.masterVolume;
-    if (masterGainNode) masterGainNode.gain.value = save.masterVolume / 100;
-    document.documentElement.setAttribute('data-theme', save.theme);
+    syncVolumeUi();
+    applyFont();
+    applyTheme();
     applyUiScale();
     syncSettingButtons();
     updateHud();
-    showMessage(buildGreeting());
+    showMessage(buildGreeting(), 'info');
   });
 
-  // ---------- beforeunload 存檔 ----------
-  window.addEventListener('beforeunload', () => {
-    save.chips = gameState.chips;
-    persist();
+  // ---------- 離開頁面時存檔（iOS 不一定觸發 beforeunload，所以也聽 visibilitychange） ----------
+  window.addEventListener('beforeunload', persist);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopFiring(); persist(); }
   });
 
-  // ---------- 主迴圈 ----------
+  // ---------- Canvas 配色與預先繪製的圖層 ----------
+  const THEME_COLORS = {
+    classic: {
+      bgTop: '#30155a', bgBottom: '#140724', spot: 'rgba(170,120,255,0.20)', tray: 'rgba(0,0,0,0.30)',
+      frame: 'rgba(255,204,77,0.28)', vignette: 'rgba(0,0,0,0.40)', speck: '255,255,255',
+      pin: '#efe6ff', pinShade: '#6b54a8', feverPin: '#ffc48a', feverPinShade: '#b34a00', pinShadow: 'rgba(0,0,0,0.45)',
+      glow: '#fff1b8', additive: true, feverRay: '#ffcc4d', feverTint: 'rgba(255,110,60,0.20)',
+      holeOuter: '#9d84e8', holeInner: '#c39cff', holeBig: '#ffcc4d', holeDark: '#0e0418',
+      indicator: '#ffcc4d', floatStroke: '#1a0a2e'
+    },
+    retro: {
+      bgTop: '#451212', bgBottom: '#160303', spot: 'rgba(255,140,90,0.16)', tray: 'rgba(0,0,0,0.30)',
+      frame: 'rgba(255,209,102,0.28)', vignette: 'rgba(0,0,0,0.40)', speck: '255,230,200',
+      pin: '#ffe9c4', pinShade: '#9a5a2a', feverPin: '#ff9c8c', feverPinShade: '#a01818', pinShadow: 'rgba(0,0,0,0.45)',
+      glow: '#ffe2a8', additive: true, feverRay: '#ffd166', feverTint: 'rgba(255,80,60,0.20)',
+      holeOuter: '#e0866a', holeInner: '#ffab78', holeBig: '#ffd166', holeDark: '#120202',
+      indicator: '#ffd166', floatStroke: '#2b0a0a'
+    },
+    day: {
+      bgTop: '#fffcf4', bgBottom: '#f3dcae', spot: 'rgba(255,255,255,0.45)', tray: 'rgba(122,75,0,0.10)',
+      frame: 'rgba(184,134,11,0.40)', vignette: 'rgba(122,75,0,0.14)', speck: '184,134,11',
+      pin: '#e8c27a', pinShade: '#7a4b00', feverPin: '#ffb066', feverPinShade: '#c2410c', pinShadow: 'rgba(122,75,0,0.28)',
+      glow: '#ff9f1c', additive: false, feverRay: '#ffb703', feverTint: 'rgba(255,150,40,0.16)',
+      holeOuter: '#8e72dc', holeInner: '#6f4fd0', holeBig: '#e0a800', holeDark: '#3a2350',
+      indicator: '#d2691e', floatStroke: '#2a1245'
+    }
+  };
+  function currentTheme() { return THEME_COLORS[save.theme] || THEME_COLORS.classic; }
+  // 漸層要淡出到「同色透明」，若淡出到 rgba(0,0,0,0) 在明亮主題會出現灰色光暈
+  function clearOf(color) {
+    if (color[0] === '#') {
+      const n = parseInt(color.slice(1), 16);
+      return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',0)';
+    }
+    return color.replace(/,[^,]*[)]$/, ',0)');
+  }
+
+  // 依實際顯示大小 × 裝置像素比設定 Canvas 解析度，高解析螢幕與放大時都清晰不糊
+  let renderScale = 1;
+  const layers = { bg: null, pins: null, feverPins: null };
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return;
+    const k = Math.min(4, Math.max(1, (rect.width / CANVAS_W) * (window.devicePixelRatio || 1)));
+    if (Math.abs(k - renderScale) < 0.02 && layers.bg) return;
+    renderScale = k;
+    canvas.width = Math.round(CANVAS_W * k);
+    canvas.height = Math.round(CANVAS_H * k);
+    buildLayers();
+  }
+  function makeLayer() {
+    const c = document.createElement('canvas');
+    c.width = canvas.width;
+    c.height = canvas.height;
+    const g = c.getContext('2d');
+    g.setTransform(canvas.width / CANVAS_W, 0, 0, canvas.height / CANVAS_H, 0, 0);
+    return [c, g];
+  }
+  function roundRectPath(g, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  }
+  function buildBgLayer(t) {
+    const [c, g] = makeLayer();
+    const lin = g.createLinearGradient(0, 0, 0, CANVAS_H);
+    lin.addColorStop(0, t.bgTop);
+    lin.addColorStop(1, t.bgBottom);
+    g.fillStyle = lin;
+    g.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    // 上方聚光
+    const spot = g.createRadialGradient(CANVAS_W / 2, 150, 10, CANVAS_W / 2, 150, 280);
+    spot.addColorStop(0, t.spot);
+    spot.addColorStop(1, clearOf(t.spot));
+    g.fillStyle = spot;
+    g.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    // 細碎亮點紋理（固定亂數種子，每次畫出來都一樣）
+    let seed = 7;
+    const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 90; i++) {
+      g.fillStyle = 'rgba(' + t.speck + ',' + (0.04 + rand() * 0.08).toFixed(3) + ')';
+      g.beginPath();
+      g.arc(rand() * CANVAS_W, rand() * 460, 0.6 + rand() * 1.2, 0, Math.PI * 2);
+      g.fill();
+    }
+    // 發射區淡淡的帶狀底色
+    const top = g.createLinearGradient(0, 0, 0, 52);
+    top.addColorStop(0, t.tray);
+    top.addColorStop(1, clearOf(t.tray));
+    g.fillStyle = top;
+    g.fillRect(0, 0, CANVAS_W, 52);
+    // 底部洞口托盤
+    const tray = g.createLinearGradient(0, 462, 0, CANVAS_H);
+    tray.addColorStop(0, clearOf(t.tray));
+    tray.addColorStop(0.3, t.tray);
+    tray.addColorStop(1, t.tray);
+    g.fillStyle = tray;
+    g.fillRect(0, 462, CANVAS_W, CANVAS_H - 462);
+    // 暗角
+    const vig = g.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, 180, CANVAS_W / 2, CANVAS_H / 2, 380);
+    vig.addColorStop(0, clearOf(t.vignette));
+    vig.addColorStop(1, t.vignette);
+    g.fillStyle = vig;
+    g.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    // 內框細線
+    g.strokeStyle = t.frame;
+    g.lineWidth = 1.5;
+    roundRectPath(g, 4, 4, CANVAS_W - 8, CANVAS_H - 8, 8);
+    g.stroke();
+    return c;
+  }
+  function buildPinLayer(t, color, shade) {
+    const [c, g] = makeLayer();
+    pins.forEach(p => {
+      const x = p.position.x, y = p.position.y;
+      g.fillStyle = t.pinShadow;
+      g.beginPath();
+      g.arc(x + 1.3, y + 1.8, PIN_RADIUS, 0, Math.PI * 2);
+      g.fill();
+      const grad = g.createRadialGradient(x - 1.7, y - 1.9, 0.4, x, y, PIN_RADIUS);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.35, color);
+      grad.addColorStop(1, shade);
+      g.fillStyle = grad;
+      g.beginPath();
+      g.arc(x, y, PIN_RADIUS, 0, Math.PI * 2);
+      g.fill();
+    });
+    return c;
+  }
+  function buildLayers() {
+    const t = currentTheme();
+    layers.bg = buildBgLayer(t);
+    layers.pins = buildPinLayer(t, t.pin, t.pinShade);
+    layers.feverPins = buildPinLayer(t, t.feverPin, t.feverPinShade);
+  }
+
+  // ---------- 主迴圈：固定 60 步／秒的物理，高更新率螢幕（120/144Hz）也不會變快 ----------
+  const STEP_MS = 1000 / 60;
   const PHYSICS_SUBSTEPS = 4; // 用更小的時間步分次計算物理，避免高速小彈珠穿過釘子
   const MAX_BALL_SPEED = 14; // 限制最高速度，進一步降低穿模風險
-  function loop() {
+  let frameCount = 0;
+  let lastFrame = performance.now();
+  let stepAcc = 0;
+
+  function physicsStep() {
     for (let s = 0; s < PHYSICS_SUBSTEPS; s++) {
-      Engine.update(engine, (1000 / 60) / PHYSICS_SUBSTEPS);
+      Engine.update(engine, STEP_MS / PHYSICS_SUBSTEPS);
       balls.forEach(b => {
         const speed = Math.hypot(b.velocity.x, b.velocity.y);
         if (speed > MAX_BALL_SPEED) {
@@ -1422,6 +2157,7 @@
     }
 
     // 回收出界彈珠（未入洞 = 0 分）
+    const now = Date.now();
     for (let i = balls.length - 1; i >= 0; i--) {
       const b = balls[i];
       if (!reduceMotion) {
@@ -1429,95 +2165,268 @@
         if (b.trail.length > TRAIL_LENGTH) b.trail.shift();
       }
       if (b.position.y > CANVAS_H + 20) {
-        if (!b.scored) {
-          showMessage('可惜，掉出去了，再接再厲！');
-        }
+        if (!b.scored) showMessage('可惜，掉出去了，再接再厲！', 'miss');
+        removeBall(b);
+      } else if (now - b.spawnTime > BALL_MAX_AGE) {
         removeBall(b);
       }
     }
 
+    pins.forEach(p => { if (p.flash > 0) p.flash = Math.max(0, p.flash - 0.06); });
+    holeBodies.forEach(hb => { if (hb.flash > 0) hb.flash = Math.max(0, hb.flash - 0.035); });
     updateParticles();
+    updateFloats();
+
+    if (gameState.isFever) {
+      gameState.feverStepsLeft--;
+      if (!reduceMotion && frameCount % 150 === 75) spawnFireworks();
+      if (gameState.feverStepsLeft <= 0) endFever();
+    }
+    feverMix += ((gameState.isFever ? 1 : 0) - feverMix) * 0.05;
+    if (feverMix < 0.005) feverMix = 0;
+    frameCount++;
+  }
+
+  function loop(now) {
+    stepAcc += Math.min(now - lastFrame, 100);
+    lastFrame = now;
+    let n = 0;
+    // 容許 1ms 誤差，避免 60Hz 螢幕因計時抖動一下跑 0 步一下跑 2 步
+    while (stepAcc >= STEP_MS - 1 && n < 5) {
+      physicsStep();
+      stepAcc -= STEP_MS;
+      n++;
+    }
+    if (n === 5) stepAcc = 0;
+    tickHud();
+    updateFeverBanner();
     render();
     requestAnimationFrame(loop);
   }
 
-  const THEME_COLORS = {
-    classic: { bg: '#241041', feverBg1: '#4a1f7a', feverBg2: '#241041', pin: '#d8c4ff', feverPin: '#ff8c42' },
-    retro:   { bg: '#2b0a0a', feverBg1: '#5c1a1a', feverBg2: '#2b0a0a', pin: '#ffd9a0', feverPin: '#ff4d4d' },
-    day:     { bg: '#fff8e7', feverBg1: '#ffe1b3', feverBg2: '#fff8e7', pin: '#7a4b00', feverPin: '#ff7f11' }
-  };
-
-  function render() {
-    const theme = THEME_COLORS[save.theme] || THEME_COLORS.classic;
-    // 背景
-    if (gameState.isFever) {
-      const grad = ctx2d.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, 20, CANVAS_W / 2, CANVAS_H / 2, 300);
-      grad.addColorStop(0, theme.feverBg1);
-      grad.addColorStop(1, theme.feverBg2);
-      ctx2d.fillStyle = grad;
-    } else {
-      ctx2d.fillStyle = theme.bg;
-    }
+  // ---------- 繪製 ----------
+  function drawFeverBackdrop(t) {
+    ctx2d.save();
+    ctx2d.globalAlpha = feverMix;
+    ctx2d.fillStyle = t.feverTint;
     ctx2d.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-    // 釘子
-    ctx2d.fillStyle = gameState.isFever ? theme.feverPin : theme.pin;
-    pins.forEach(p => {
+    // 放射光芒
+    ctx2d.translate(CANVAS_W / 2, 250);
+    ctx2d.rotate(reduceMotion ? 0 : frameCount * 0.004);
+    ctx2d.globalAlpha = 0.16 * feverMix;
+    ctx2d.fillStyle = t.feverRay;
+    const RAYS = 12;
+    for (let i = 0; i < RAYS; i++) {
+      const a = (i / RAYS) * Math.PI * 2;
       ctx2d.beginPath();
-      ctx2d.arc(p.position.x, p.position.y, PIN_RADIUS, 0, Math.PI * 2);
+      ctx2d.moveTo(0, 0);
+      ctx2d.arc(0, 0, 440, a, a + Math.PI / RAYS);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+    ctx2d.restore();
+  }
+
+  function drawPinFlashes(t) {
+    ctx2d.save();
+    if (t.additive) ctx2d.globalCompositeOperation = 'lighter';
+    pins.forEach(p => {
+      if (p.flash <= 0) return;
+      const x = p.position.x, y = p.position.y;
+      const r = PIN_RADIUS * 2.8;
+      const grad = ctx2d.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, t.glow);
+      grad.addColorStop(1, clearOf(t.glow));
+      ctx2d.globalAlpha = p.flash * (t.additive ? 0.85 : 0.55);
+      ctx2d.fillStyle = grad;
+      ctx2d.beginPath();
+      ctx2d.arc(x, y, r, 0, Math.PI * 2);
       ctx2d.fill();
     });
+    ctx2d.restore();
+  }
 
-    // 洞口
+  // 落點提示：依目前力道在上方顯示彈珠會從哪裡掉下
+  function drawDropIndicator(t) {
+    const x = spawnXForPower(Number(powerSlider.value));
+    const a = reduceMotion ? 0.8 : 0.6 + 0.3 * Math.sin(frameCount * 0.08);
+    ctx2d.save();
+    ctx2d.globalAlpha = a;
+    ctx2d.strokeStyle = t.indicator;
+    ctx2d.fillStyle = t.indicator;
+    ctx2d.lineWidth = 1.5;
+    ctx2d.setLineDash([3, 3]);
+    ctx2d.beginPath();
+    ctx2d.arc(x, 30, BALL_RADIUS, 0, Math.PI * 2);
+    ctx2d.stroke();
+    ctx2d.setLineDash([2, 4]);
+    ctx2d.beginPath();
+    ctx2d.moveTo(x, 40);
+    ctx2d.lineTo(x, 52);
+    ctx2d.stroke();
+    ctx2d.setLineDash([]);
+    ctx2d.beginPath();
+    ctx2d.moveTo(x - 6, 6);
+    ctx2d.lineTo(x + 6, 6);
+    ctx2d.lineTo(x, 15);
+    ctx2d.closePath();
+    ctx2d.fill();
+    ctx2d.restore();
+  }
+
+  function drawPocket(t, x0, x1, color, label, flash, glow) {
+    // 最右側洞口的判定範圍略超出盤面，畫的時候收進框內
+    x0 = Math.max(x0, 6);
+    x1 = Math.min(x1, CANVAS_W - 6);
+    const y0 = HOLE_Y - HOLE_H / 2, h = HOLE_H, w = x1 - x0;
+    ctx2d.save();
+    if (glow > 0) {
+      ctx2d.shadowColor = color;
+      ctx2d.shadowBlur = 16 * glow;
+    }
+    roundRectPath(ctx2d, x0, y0, w, h, 8);
+    ctx2d.fillStyle = color;
+    ctx2d.fill();
+    ctx2d.restore();
+    // 外框立體光澤
+    const gloss = ctx2d.createLinearGradient(0, y0, 0, y0 + h);
+    gloss.addColorStop(0, 'rgba(255,255,255,0.55)');
+    gloss.addColorStop(0.45, 'rgba(255,255,255,0)');
+    gloss.addColorStop(1, 'rgba(0,0,0,0.3)');
+    roundRectPath(ctx2d, x0, y0, w, h, 8);
+    ctx2d.fillStyle = gloss;
+    ctx2d.fill();
+    // 內側洞口
+    roundRectPath(ctx2d, x0 + 3.5, y0 + 3.5, w - 7, h - 7, 5);
+    ctx2d.fillStyle = t.holeDark;
+    ctx2d.fill();
+    // 分數標示（14px 粗體，長輩看得清楚）
+    ctx2d.fillStyle = color;
+    ctx2d.font = 'bold 14px Arial, Helvetica, sans-serif';
+    ctx2d.textAlign = 'center';
+    ctx2d.textBaseline = 'middle';
+    ctx2d.fillText(label, (x0 + x1) / 2, HOLE_Y + 1);
+    if (flash > 0) {
+      roundRectPath(ctx2d, x0, y0, w, h, 8);
+      ctx2d.globalAlpha = flash * 0.75;
+      ctx2d.fillStyle = '#ffffff';
+      ctx2d.fill();
+      ctx2d.globalAlpha = 1;
+    }
+  }
+
+  function drawHoles(t) {
+    const feverWide = bigHoles[0].scaledUp;
     holeBodies.forEach(hb => {
-      const vertices = hb.vertices;
-      const minX = Math.min(...vertices.map(v => v.x));
-      const maxX = Math.max(...vertices.map(v => v.x));
-      const minY = Math.min(...vertices.map(v => v.y));
-      const maxY = Math.max(...vertices.map(v => v.y));
-      const isBig = hb.holeDef.type === 'big';
-      ctx2d.fillStyle = isBig ? '#ffcc4d' : '#8a6fd6';
-      ctx2d.fillRect(minX, minY, maxX - minX, maxY - minY);
-      ctx2d.fillStyle = '#2a1245';
-      ctx2d.font = 'bold 11px sans-serif';
-      ctx2d.textAlign = 'center';
-      const label = isBig ? (gameState.isFever ? '+150' : '+50') : (hb.holeDef.type === 'small-inner' ? '+10' : '+5');
-      ctx2d.fillText(label, (minX + maxX) / 2, (minY + maxY) / 2 + 4);
+      const type = hb.holeDef.type;
+      if (type === 'big' && feverWide) return;
+      const color = type === 'big' ? t.holeBig : type === 'small-inner' ? t.holeInner : t.holeOuter;
+      const label = '+' + SCORE_TABLE[type].normal;
+      drawPocket(t, hb.bounds.min.x, hb.bounds.max.x, color, label, hb.flash, 0);
     });
+    if (feverWide) {
+      // Fever 時兩個大入洞放大後幾乎相連，合併畫成一個發光的大獎洞口
+      const pulse = reduceMotion ? 0.8 : 0.6 + 0.4 * Math.sin(frameCount * 0.15);
+      const flash = Math.max(bigHoles[0].flash, bigHoles[1].flash);
+      drawPocket(t, bigHoles[0].bounds.min.x, bigHoles[1].bounds.max.x, t.holeBig,
+        '★ +' + SCORE_TABLE.big.fever + ' ★', flash, pulse);
+    }
+  }
 
-    // 彈珠殘影軌跡
+  function drawBalls() {
     if (!reduceMotion) {
       balls.forEach(b => {
         b.trail.forEach((p, i) => {
-          const alpha = (i / b.trail.length) * 0.35;
+          ctx2d.globalAlpha = (i / b.trail.length) * 0.32;
+          ctx2d.fillStyle = b.color.c;
           ctx2d.beginPath();
-          ctx2d.arc(p.x, p.y, BALL_RADIUS * 0.7, 0, Math.PI * 2);
-          ctx2d.fillStyle = b.color;
-          ctx2d.globalAlpha = alpha;
+          ctx2d.arc(p.x, p.y, BALL_RADIUS * (0.4 + 0.4 * i / b.trail.length), 0, Math.PI * 2);
           ctx2d.fill();
         });
       });
       ctx2d.globalAlpha = 1;
     }
-
-    // 彈珠
     balls.forEach(b => {
+      const x = b.position.x, y = b.position.y;
+      ctx2d.fillStyle = 'rgba(0,0,0,0.28)';
       ctx2d.beginPath();
-      ctx2d.arc(b.position.x, b.position.y, BALL_RADIUS, 0, Math.PI * 2);
-      const grad = ctx2d.createRadialGradient(
-        b.position.x - 2, b.position.y - 2, 1,
-        b.position.x, b.position.y, BALL_RADIUS
-      );
-      grad.addColorStop(0, '#fff');
-      grad.addColorStop(1, b.color);
+      ctx2d.arc(x + 1.5, y + 2.5, BALL_RADIUS, 0, Math.PI * 2);
+      ctx2d.fill();
+      const grad = ctx2d.createRadialGradient(x - 2.8, y - 3, 0.5, x, y, BALL_RADIUS);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, b.color.c);
+      grad.addColorStop(1, b.color.s);
       ctx2d.fillStyle = grad;
+      ctx2d.beginPath();
+      ctx2d.arc(x, y, BALL_RADIUS, 0, Math.PI * 2);
+      ctx2d.fill();
+      ctx2d.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx2d.beginPath();
+      ctx2d.arc(x - 2.8, y - 3, 1.8, 0, Math.PI * 2);
       ctx2d.fill();
     });
-
-    // Fever 煙火粒子
-    renderParticles();
   }
 
+  function drawParticles(t) {
+    if (!particles.length) return;
+    ctx2d.save();
+    if (t.additive) ctx2d.globalCompositeOperation = 'lighter';
+    particles.forEach(p => {
+      ctx2d.globalAlpha = Math.max(0, p.life / p.maxLife);
+      ctx2d.fillStyle = p.color;
+      ctx2d.beginPath();
+      ctx2d.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx2d.fill();
+    });
+    ctx2d.restore();
+  }
+
+  function drawFloats(t) {
+    if (!floats.length) return;
+    ctx2d.save();
+    ctx2d.font = 'bold 20px Arial, Helvetica, sans-serif';
+    ctx2d.textAlign = 'center';
+    ctx2d.textBaseline = 'middle';
+    ctx2d.lineJoin = 'round';
+    ctx2d.lineWidth = 4;
+    ctx2d.strokeStyle = t.floatStroke;
+    floats.forEach(f => {
+      ctx2d.globalAlpha = Math.min(1, (f.life / f.maxLife) * 2);
+      ctx2d.strokeText(f.text, f.x, f.y);
+      ctx2d.fillStyle = f.color;
+      ctx2d.fillText(f.text, f.x, f.y);
+    });
+    ctx2d.restore();
+  }
+
+  function render() {
+    const t = currentTheme();
+    ctx2d.setTransform(canvas.width / CANVAS_W, 0, 0, canvas.height / CANVAS_H, 0, 0);
+    ctx2d.drawImage(layers.bg, 0, 0, CANVAS_W, CANVAS_H);
+    if (feverMix > 0) drawFeverBackdrop(t);
+    if (feverMix < 1) ctx2d.drawImage(layers.pins, 0, 0, CANVAS_W, CANVAS_H);
+    if (feverMix > 0) {
+      ctx2d.globalAlpha = feverMix;
+      ctx2d.drawImage(layers.feverPins, 0, 0, CANVAS_W, CANVAS_H);
+      ctx2d.globalAlpha = 1;
+    }
+    drawPinFlashes(t);
+    drawDropIndicator(t);
+    drawHoles(t);
+    drawBalls();
+    drawParticles(t);
+    drawFloats(t);
+  }
+
+  // ---------- 啟動 ----------
+  applyFont();
+  document.documentElement.setAttribute('data-theme', save.theme);
+  themeMeta.setAttribute('content', THEME_META[save.theme] || THEME_META.classic);
+  applyUiScale();
+  syncSettingButtons();
+  resizeCanvas();
+  if (!layers.bg) buildLayers();
+  if (window.ResizeObserver) new ResizeObserver(resizeCanvas).observe(canvas);
   requestAnimationFrame(loop);
 
   // ---------- PWA：註冊 Service Worker ----------
