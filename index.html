@@ -202,6 +202,23 @@
   #feverBanner.show { display: flex; }
   #feverBanner .ft { display: flex; flex-direction: column; align-items: center; line-height: 1.25; }
   #feverBanner .ft small { font-size: calc(15px * var(--fs)); font-weight: bold; }
+  #feverChain {
+    margin-left: 6px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #fff;
+    color: #e0245e;
+    font-style: normal;
+    font-size: calc(17px * var(--fs));
+    text-shadow: none;
+    vertical-align: 2px;
+  }
+  #feverChain.pop { animation: chainPop 0.5s ease; }
+  @keyframes chainPop {
+    0% { transform: scale(0.4); }
+    60% { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
   #feverSec {
     flex: none;
     white-space: nowrap;
@@ -301,6 +318,71 @@
   #holdDots i.on {
     background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%);
     box-shadow: 0 0 6px var(--accent);
+  }
+
+  /* 必中進度條：連續沒中大獎時，看得到「再幾次一定中」 */
+  #guarantee {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: calc(13px * var(--fs));
+    font-weight: bold;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  #guarantee .gbar {
+    flex: 1;
+    min-width: 60px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--track);
+    overflow: hidden;
+  }
+  #guaranteeFill {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--score), var(--accent));
+    transition: width 0.4s ease;
+  }
+  #guarantee.near { color: var(--accent); }
+  #guarantee.near #guaranteeFill { background: linear-gradient(90deg, var(--accent), #ff3d6e); animation: nearGlow 0.8s ease-in-out infinite alternate; }
+  @keyframes nearGlow { to { filter: brightness(1.5); } }
+
+  /* 「按我！」大按鈕：就差一個時讓玩家親手揭曉 */
+  #pushBtn {
+    position: absolute;
+    left: 50%; top: 42%;
+    z-index: 25;
+    width: 148px; height: 148px;
+    margin: -74px 0 0 -74px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 6px solid #ffcc4d;
+    background: radial-gradient(circle at 38% 30%, #ff9a9a, #ff2d55 45%, #a3001f);
+    color: #fff;
+    cursor: pointer;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+    box-shadow: 0 8px 0 #6e0015, 0 0 0 6px rgba(255, 204, 77, 0.35), 0 0 40px 10px rgba(255, 61, 110, 0.6);
+    touch-action: manipulation;
+    animation: pushPulse 0.6s ease-in-out infinite alternate;
+  }
+  #pushBtn[hidden] { display: none; }
+  #pushBtn b { font-size: 36px; line-height: 1.1; }
+  #pushBtn small { font-size: 15px; font-weight: bold; opacity: 0.9; }
+  #pushBtn:active, #pushBtn.pressed {
+    animation: none;
+    transform: translateY(6px) scale(0.96);
+    box-shadow: 0 2px 0 #6e0015, 0 0 0 10px rgba(255, 255, 255, 0.6), 0 0 60px 20px #ffcc4d;
+  }
+  @keyframes pushPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.08); }
   }
 
   /* 盤面：金屬機台外框 */
@@ -702,6 +784,7 @@
     .score-value.pulse, .delta, #messageBar.pop, .reel.land .sym,
     #feverBanner, #boardWrap.fever, .reel.spinning .sym, .maliCell.final { animation: none; }
     .reel.reach { animation: none; box-shadow: 0 0 14px 5px #ffcc4d; }
+    #pushBtn, #feverChain.pop, #guarantee.near #guaranteeFill { animation: none; }
     #slotMachine.win .reel { animation: none; background: var(--accent); }
     .reel.spinning .sym { filter: none; }
     canvas, #slotMachine, .overlay, .modal, #toast { transition: none; }
@@ -724,7 +807,7 @@
   </div>
 
   <div id="feverBanner" role="status">
-    <span class="ft"><b>🎉 大獎時間！</b><small>中間大洞分數變 3 倍</small></span>
+    <span class="ft"><b>🎉 大獎時間！<em id="feverChain" hidden></em></b><small>中間大洞 3 倍・這輪已得 <span id="feverEarned">0</span> 分</small></span>
     <span id="feverSec">30 秒</span>
     <div id="feverBar"></div>
   </div>
@@ -736,10 +819,15 @@
       <div class="reel"><span class="sym">⭐</span></div>
     </div>
     <div id="holdDots" aria-label="還有幾次等著轉"><span>待轉</span><i></i><i></i><i></i><i></i></div>
+    <div id="guarantee">
+      <div class="gbar"><i id="guaranteeFill"></i></div>
+      <span id="guaranteeText"></span>
+    </div>
   </div>
 
   <div id="boardWrap">
     <canvas id="board" width="360" height="520" aria-label="柏青哥盤面"></canvas>
+    <button id="pushBtn" hidden><b>按我！</b><small>揭曉結果</small></button>
   </div>
 
   <div id="messageBar" role="status" aria-live="polite"></div>
@@ -927,6 +1015,8 @@
     feverCount: 0,
     isFever: false,
     feverStepsLeft: 0,
+    feverChain: 0,   // 這輪大獎時間連莊了幾次
+    feverEarned: 0,  // 這輪大獎時間已得分數
     missStreak: save.missStreak || 0,
     soundOn: save.soundOn,
     musicOn: save.musicOn,
@@ -986,6 +1076,12 @@
   const reelEls = Array.from(document.querySelectorAll('.reel'));
   const symEls = reelEls.map(r => r.querySelector('.sym'));
   const holdDotEls = Array.from(document.querySelectorAll('#holdDots i'));
+  const guaranteeEl = $('guarantee');
+  const guaranteeFillEl = $('guaranteeFill');
+  const guaranteeTextEl = $('guaranteeText');
+  const pushBtn = $('pushBtn');
+  const feverChainEl = $('feverChain');
+  const feverEarnedEl = $('feverEarned');
   const statsOverlay = $('statsOverlay');
   const achieveOverlay = $('achieveOverlay');
   const settingsOverlay = $('settingsOverlay');
@@ -1140,6 +1236,7 @@
   function sfxAchieve() { tone(880, 0, 0.1, 'sine'); tone(1175, 0.1, 0.1, 'sine'); tone(1568, 0.2, 0.25, 'sine'); }
   function sfxMaliTick() { tone(600, 0, 0.04, 'square', 0.06); }
   function sfxMaliWin() { tone(523, 0, 0.1, 'triangle'); tone(659, 0.1, 0.1, 'triangle'); tone(784, 0.2, 0.1, 'triangle'); tone(1047, 0.3, 0.25, 'triangle'); }
+  function sfxPush() { tone(196, 0, 0.18, 'square', 0.12); tone(392, 0.02, 0.25, 'triangle', 0.12); }
   function sfxReach() { [523, 587, 659, 698, 784, 880].forEach((f, i) => tone(f, i * 0.07, 0.08, 'square', 0.08)); }
 
   // ---------- 語音回饋（Web Speech API） ----------
@@ -1399,6 +1496,37 @@
     }
     return r;
   }
+  // 保底：連續 GUARANTEE_SPINS 次沒中大獎，下一次必中
+  const GUARANTEE_SPINS = 40;
+  function updateGuarantee() {
+    const left = GUARANTEE_SPINS + 1 - gameState.missStreak;
+    guaranteeFillEl.style.width = Math.min(100, (gameState.missStreak / GUARANTEE_SPINS) * 100) + '%';
+    guaranteeTextEl.textContent = left <= 1 ? '🌟 下一次必中大獎！' : '再轉 ' + left + ' 次必中大獎';
+    guaranteeEl.classList.toggle('near', left <= 5);
+  }
+
+  // 「按我！」按鈕：按下或等幾秒後自動揭曉
+  const PUSH_AUTO_MS = 5000;
+  let pushAction = null;
+  let pushTimer = null;
+  function showPushButton(action) {
+    pushAction = action;
+    pushBtn.classList.remove('pressed');
+    pushBtn.hidden = false;
+    pushTimer = setTimeout(pressPush, PUSH_AUTO_MS);
+  }
+  function pressPush() {
+    if (!pushAction) return;
+    const action = pushAction;
+    pushAction = null;
+    clearTimeout(pushTimer);
+    sfxPush();
+    pushBtn.classList.add('pressed');
+    setTimeout(() => { pushBtn.hidden = true; }, 180);
+    action();
+  }
+  pushBtn.addEventListener('click', pressPush);
+
   function renderHoldDots() {
     holdDotEls.forEach((d, i) => d.classList.toggle('on', i < holdQueue.length));
   }
@@ -1426,7 +1554,7 @@
     // Fever 中盤面才是主角，不壓暗；保留連轉時也就不會讓盤面長時間變暗
     boardWrap.classList.toggle('dim', !gameState.isFever);
 
-    const forceWin = gameState.missStreak >= 40;
+    const forceWin = gameState.missStreak >= GUARANTEE_SPINS;
     let result;
     if (forceWin || Math.random() < winProb) {
       result = ['7️⃣', '7️⃣', '7️⃣'];
@@ -1444,9 +1572,9 @@
       }
     }
 
-    // 「就差一個」演出：前兩格已是 7 或櫻桃時，最後一格放慢停，增加期待感
+    // 「就差一個」演出：前兩格已是 7 或櫻桃時，最後一格停住不動，等玩家按「按我！」才揭曉
     const reach = result[0] === result[1] && (result[0] === '7️⃣' || result[0] === '🍒');
-    const stopDelays = reach ? [600, 1000, 2600] : [600, 1000, 1400];
+    const stopDelays = [600, 1000, 1400];
 
     const spinIntervals = [];
     reelEls.forEach((el, i) => {
@@ -1457,19 +1585,23 @@
       }, 70);
     });
 
+    function stopReel(i) {
+      const el = reelEls[i];
+      clearInterval(spinIntervals[i]);
+      el.classList.remove('spinning', 'reach');
+      symEls[i].textContent = result[i];
+      if (!reduceMotion) retrigger(el, 'land');
+      if (i === 1 && reach) {
+        reelEls[2].classList.add('reach');
+        showMessage('🔥 就差一個！按「按我！」揭曉 🔥', 'big');
+        sfxReach();
+        setTimeout(() => showPushButton(() => stopReel(2)), 500);
+      }
+      if (i === reelEls.length - 1) finishSpin(result);
+    }
     reelEls.forEach((el, i) => {
-      setTimeout(() => {
-        clearInterval(spinIntervals[i]);
-        el.classList.remove('spinning', 'reach');
-        symEls[i].textContent = result[i];
-        if (!reduceMotion) retrigger(el, 'land');
-        if (i === 1 && reach) {
-          reelEls[2].classList.add('reach');
-          showMessage('🔥 就差一個！🔥', 'big');
-          sfxReach();
-        }
-        if (i === reelEls.length - 1) finishSpin(result);
-      }, stopDelays[i]);
+      if (i === 2 && reach) return; // 第三格交給「按我！」按鈕
+      setTimeout(() => stopReel(i), stopDelays[i]);
     });
   }
 
@@ -1480,7 +1612,6 @@
     if (sevenCount === 3) {
       gameState.missStreak = 0;
       sfx777();
-      showMessage('🎉 777 中獎！大獎時間開始！', 'big');
       startFever();
       boardWrap.classList.remove('dim');
     } else if (cherryCount === 3) {
@@ -1501,6 +1632,7 @@
       showMessage('可惜，再試一次！', 'miss');
     }
     if (isWin) slotMachineEl.classList.add('win');
+    updateGuarantee();
     updateHud();
     persist();
     checkAchievements();
@@ -1527,6 +1659,7 @@
     });
   }
   function startFever() {
+    const again = gameState.isFever;
     gameState.isFever = true;
     gameState.feverCount++;
     save.totalFever++;
@@ -1534,7 +1667,21 @@
     boardWrap.classList.add('fever');
     feverBanner.classList.add('show');
     sfxFeverStart();
-    speak('恭喜！大獎時間開始！');
+    if (again) {
+      // 大獎時間中又中 777：連莊！重新計時，這輪分數繼續累積
+      gameState.feverChain++;
+      feverChainEl.textContent = '連莊 ×' + gameState.feverChain;
+      feverChainEl.hidden = false;
+      if (!reduceMotion) retrigger(feverChainEl, 'pop');
+      showMessage('🎉 連莊 ' + gameState.feverChain + ' 次！大獎時間重新計時！', 'big');
+      speak('連莊！太厲害了！');
+    } else {
+      gameState.feverChain = 1;
+      gameState.feverEarned = 0;
+      feverChainEl.hidden = true;
+      showMessage('🎉 777 中獎！大獎時間開始！', 'big');
+      speak('恭喜！大獎時間開始！');
+    }
     spawnFireworks();
     setBigHolesWide(true);
     persist();
@@ -1545,7 +1692,9 @@
     boardWrap.classList.remove('fever');
     feverBanner.classList.remove('show');
     setBigHolesWide(false);
-    showMessage('大獎時間結束，繼續加油！', 'info');
+    const chainText = gameState.feverChain > 1 ? '連莊 ' + gameState.feverChain + ' 次，' : '';
+    showMessage('大獎時間結束！' + chainText + '這輪共得 ' + fmt(gameState.feverEarned) + ' 分', 'win');
+    gameState.feverChain = 0;
     persist();
   }
   let lastFeverSec = -1;
@@ -1553,6 +1702,8 @@
     if (!gameState.isFever) return;
     const sec = Math.ceil(gameState.feverStepsLeft / 60);
     if (sec !== lastFeverSec) { feverSecEl.textContent = sec + ' 秒'; lastFeverSec = sec; }
+    const earned = fmt(gameState.feverEarned);
+    if (feverEarnedEl.textContent !== earned) feverEarnedEl.textContent = earned;
     feverBarEl.style.transform = 'scaleX(' + (gameState.feverStepsLeft / FEVER_STEPS).toFixed(3) + ')';
   }
 
@@ -1647,6 +1798,7 @@
     gameState.sessionScore += score;
     save.totalScore += score;
     save.totalHoles++;
+    if (gameState.isFever) gameState.feverEarned += score;
     holeBody.flash = 1;
     spawnFloat(Math.max(24, Math.min(CANVAS_W - 24, ball.position.x)), HOLE_Y - 22, '+' + score, type === 'big' ? theme.holeBig : '#ffffff');
 
@@ -1751,6 +1903,7 @@
     if (e.code !== 'Space' || activeModal || isTypingTarget(e.target)) return;
     e.preventDefault();
     if (e.repeat) return;
+    if (pushAction) { pressPush(); return; } // 「按我！」出現時，空白鍵就是按它
     startFiring();
   });
   document.addEventListener('keyup', (e) => {
@@ -1982,6 +2135,7 @@
     floats = [];
     holdQueue.length = 0;
     renderHoldDots();
+    updateGuarantee();
     balls.slice().forEach(removeBall);
     engine.gravity.y = save.gravity;
     nicknameInput.value = '';
@@ -2425,6 +2579,7 @@
   }
 
   // ---------- 啟動 ----------
+  updateGuarantee();
   applyFont();
   document.documentElement.setAttribute('data-theme', save.theme);
   themeMeta.setAttribute('content', THEME_META[save.theme] || THEME_META.classic);
