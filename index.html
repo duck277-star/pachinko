@@ -200,7 +200,11 @@
     animation: feverSlide 2s linear infinite;
   }
   #feverBanner.show { display: flex; }
+  #feverBanner .ft { display: flex; flex-direction: column; align-items: center; line-height: 1.25; }
+  #feverBanner .ft small { font-size: calc(15px * var(--fs)); font-weight: bold; }
   #feverSec {
+    flex: none;
+    white-space: nowrap;
     min-width: 2.6em;
     padding: 0 8px;
     border-radius: 999px;
@@ -720,7 +724,7 @@
   </div>
 
   <div id="feverBanner" role="status">
-    <span>🔥 FEVER 大入洞 ×3 🔥</span>
+    <span class="ft"><b>🎉 大獎時間！</b><small>中間大洞分數變 3 倍</small></span>
     <span id="feverSec">30 秒</span>
     <div id="feverBar"></div>
   </div>
@@ -731,7 +735,7 @@
       <div class="reel"><span class="sym">🍋</span></div>
       <div class="reel"><span class="sym">⭐</span></div>
     </div>
-    <div id="holdDots" aria-label="保留次數"><span>保留</span><i></i><i></i><i></i><i></i></div>
+    <div id="holdDots" aria-label="還有幾次等著轉"><span>待轉</span><i></i><i></i><i></i><i></i></div>
   </div>
 
   <div id="boardWrap">
@@ -767,10 +771,10 @@
     <div class="modal-head"><h2 id="statsTitle">📊 遊玩統計</h2><button class="closeX" data-close aria-label="關閉">✕</button></div>
     <div class="statGrid">
       <div class="stat">歷史總得分<b id="statTotalScore">0</b></div>
-      <div class="stat">Fever 次數<b id="statTotalFever">0</b></div>
+      <div class="stat">大獎時間次數<b id="statTotalFever">0</b></div>
       <div class="stat">發射彈珠數<b id="statTotalBalls">0</b></div>
-      <div class="stat">入洞次數<b id="statTotalHoles">0</b></div>
-      <div class="stat">入洞率<b id="statHitRate">0%</b></div>
+      <div class="stat">進洞次數<b id="statTotalHoles">0</b></div>
+      <div class="stat">進洞比例<b id="statHitRate">0%</b></div>
       <div class="stat">小瑪莉次數<b id="statMaliPlays">0</b></div>
     </div>
   </div>
@@ -1020,6 +1024,8 @@
   }
   function popDelta(item, amount) {
     if (reduceMotion) return;
+    // 連續進洞時只留最新一個浮字，避免疊在一起看不清楚
+    item.querySelectorAll('.delta').forEach(old => old.remove());
     const d = document.createElement('span');
     d.className = 'delta';
     d.textContent = '+' + fmt(amount);
@@ -1474,7 +1480,7 @@
     if (sevenCount === 3) {
       gameState.missStreak = 0;
       sfx777();
-      showMessage('🎉 777 中獎！進入 FEVER！', 'big');
+      showMessage('🎉 777 中獎！大獎時間開始！', 'big');
       startFever();
       boardWrap.classList.remove('dim');
     } else if (cherryCount === 3) {
@@ -1528,7 +1534,7 @@
     boardWrap.classList.add('fever');
     feverBanner.classList.add('show');
     sfxFeverStart();
-    speak('恭喜！進入 Fever！');
+    speak('恭喜！大獎時間開始！');
     spawnFireworks();
     setBigHolesWide(true);
     persist();
@@ -1539,7 +1545,7 @@
     boardWrap.classList.remove('fever');
     feverBanner.classList.remove('show');
     setBigHolesWide(false);
-    showMessage('Fever 結束，繼續加油！', 'info');
+    showMessage('大獎時間結束，繼續加油！', 'info');
     persist();
   }
   let lastFeverSec = -1;
@@ -1552,9 +1558,9 @@
 
   // ---------- 成就系統 ----------
   const ACHIEVEMENTS = [
-    { id: 'firstFever', icon: '🔥', name: '首次 Fever', desc: '第一次進入 Fever 模式', progress: () => [save.totalFever, 1] },
-    { id: 'hundredHits', icon: '🎯', name: '百發百中', desc: '累計入洞達 100 次', progress: () => [save.totalHoles, 100] },
-    { id: 'feverMaster', icon: '⚡', name: '電光石火', desc: '累計 Fever 達 10 次', progress: () => [save.totalFever, 10] },
+    { id: 'firstFever', icon: '🔥', name: '第一次大獎', desc: '第一次進入大獎時間', progress: () => [save.totalFever, 1] },
+    { id: 'hundredHits', icon: '🎯', name: '百發百中', desc: '累計進洞 100 次', progress: () => [save.totalHoles, 100] },
+    { id: 'feverMaster', icon: '⚡', name: '電光石火', desc: '累計進入大獎時間 10 次', progress: () => [save.totalFever, 10] },
     { id: 'richChips', icon: '💰', name: '籌碼大亨', desc: '籌碼達 5000', progress: () => [gameState.chips, 5000] },
     { id: 'maliFan', icon: '🍓', name: '水果盤達人', desc: '玩過 5 次小瑪莉', progress: () => [save.maliPlays, 5] },
   ];
@@ -1646,14 +1652,14 @@
 
     if (type === 'big') {
       sfxBigHole(pan);
-      showMessage('🎯 大入洞！+' + score + ' 分', 'win');
+      showMessage('🎯 進中間大洞！+' + score + ' 分', 'win');
       spawnBurst(ball.position.x, HOLE_Y - 8, gameState.isFever ? 26 : 14, 1.5, 4, ['#ffcc4d', '#fff1b8', '#ff8c42']);
       if (!gameState.isFever) {
         spinSlot(0.35);
       }
     } else {
       sfxSmallHole(pan);
-      showMessage('✨ 入洞！+' + score + ' 分', 'info');
+      showMessage('✨ 進洞了！+' + score + ' 分', 'info');
       spinSlot(0.08);
     }
 
