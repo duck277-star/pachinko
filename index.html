@@ -725,6 +725,7 @@
   .settingGroup:last-child { margin-bottom: 0; }
   .settingGroup > .sl { display: block; margin-bottom: 6px; font-size: calc(15px * var(--fs)); font-weight: bold; color: var(--text-muted); }
   .settingGroup .inline { display: flex; align-items: center; gap: 10px; }
+  .settingHint { margin: 6px 0 0; font-size: calc(14px * var(--fs)); color: var(--text-muted); line-height: 1.5; }
   .toggleBtn { font-size: calc(15px * var(--fs)); }
   .toggleBtn .sw {
     display: inline-block;
@@ -974,6 +975,15 @@
       </div>
     </div>
     <div class="settingGroup">
+      <span class="sl">難度</span>
+      <div class="btnRow">
+        <button class="toggleBtn" data-difficulty="easy">🌱 輕鬆</button>
+        <button class="toggleBtn" data-difficulty="normal">普通</button>
+        <button class="toggleBtn" data-difficulty="hard">🔥 挑戰</button>
+      </div>
+      <p class="settingHint" id="difficultyHint"></p>
+    </div>
+    <div class="settingGroup">
       <span class="sl">字體大小</span>
       <div class="btnRow">
         <button class="toggleBtn" data-font="normal">大</button>
@@ -1099,6 +1109,7 @@
       musicOn: false,
       ambience: 'low',        // 店內環境音：off / low / normal
       gravity: 1.6,
+      difficulty: 'normal',   // easy / normal / hard
       fontSize: 'normal',
       lastLoginDate: null,
       achievements: {},
@@ -1246,6 +1257,8 @@
   const themeBtns = Array.from(document.querySelectorAll('[data-theme]'));
   const scaleBtns = Array.from(document.querySelectorAll('[data-scale]'));
   const ambBtns = Array.from(document.querySelectorAll('[data-amb]'));
+  const difficultyBtns = Array.from(document.querySelectorAll('[data-difficulty]'));
+  const difficultyHintEl = $('difficultyHint');
 
   // ---------- 計分板：數字滾動 + 增加時跳動與「+N」浮字 ----------
   const fmt = (n) => Math.round(n).toLocaleString('zh-TW');
@@ -2081,11 +2094,34 @@
     }
     return r;
   }
-  // 保底：連續 GUARANTEE_SPINS 次沒中大獎，下一次必中
-  const GUARANTEE_SPINS = 40;
+  // 難度：哪些洞會轉老虎機、每轉中 777 的機率、幾轉保底
+  // 輕鬆＝舊版數值；普通／挑戰只有內側小洞和中間大洞會轉，平均約 80／160 轉才中一次
+  const DIFFICULTIES = {
+    easy: {
+      win: { 'small-outer': 0.08, 'small-inner': 0.08, big: 0.35 },
+      feverWin: 0.08,
+      guarantee: 40,
+      hint: '每個洞都會轉老虎機，很常中大獎，適合想輕鬆看熱鬧的時候。'
+    },
+    normal: {
+      win: { 'small-outer': 0, 'small-inner': 1 / 200, big: 1 / 60 },
+      feverWin: 0.04,
+      guarantee: 150,
+      hint: '只有中間的大洞和旁邊的洞會轉老虎機，大獎要耐心等。'
+    },
+    hard: {
+      win: { 'small-outer': 0, 'small-inner': 1 / 400, big: 1 / 120 },
+      feverWin: 0.025,
+      guarantee: 300,
+      hint: '大獎很難中，連莊也不容易，中了特別過癮！'
+    }
+  };
+  function difficulty() { return DIFFICULTIES[save.difficulty] || DIFFICULTIES.normal; }
+  // 保底：連續 guarantee 次沒中大獎，下一次必中
   function updateGuarantee() {
-    const left = GUARANTEE_SPINS + 1 - gameState.missStreak;
-    guaranteeFillEl.style.width = Math.min(100, (gameState.missStreak / GUARANTEE_SPINS) * 100) + '%';
+    const guarantee = difficulty().guarantee;
+    const left = guarantee + 1 - gameState.missStreak;
+    guaranteeFillEl.style.width = Math.min(100, (gameState.missStreak / guarantee) * 100) + '%';
     guaranteeTextEl.textContent = left <= 1 ? '🌟 下一次必中大獎！' : '再轉 ' + left + ' 次必中大獎';
     guaranteeEl.classList.toggle('near', left <= 5);
   }
@@ -2187,7 +2223,7 @@
     let result = spin.result;
     let heat = spin.heat;
     // 保底到了就必中；先讀時還沒到保底的那一轉，在真正轉動時補上
-    if (gameState.missStreak >= GUARANTEE_SPINS) {
+    if (gameState.missStreak >= difficulty().guarantee) {
       result = ['7️⃣', '7️⃣', '7️⃣'];
       heat = 'rainbow';
     }
@@ -2513,17 +2549,22 @@
     spawnCoins(ball.position.x, HOLE_Y - 10, type === 'big' ? (gameState.isFever ? 12 : 8) : 3);
     spawnFloat(Math.max(24, Math.min(CANVAS_W - 24, ball.position.x)), HOLE_Y - 22, '+' + score, type === 'big' ? theme.holeBig : '#ffffff');
 
+    const diff = difficulty();
     if (type === 'big') {
       sfxBigHole(pan);
       showMessage('🎯 進中間大洞！+' + score + ' 分', 'win');
       spawnBurst(ball.position.x, HOLE_Y - 8, gameState.isFever ? 26 : 14, 1.5, 4, ['#ffcc4d', '#fff1b8', '#ff8c42']);
       if (!gameState.isFever) {
-        spinSlot(0.35);
+        spinSlot(diff.win.big);
       }
-    } else {
+    } else if (diff.win[type] > 0) {
       sfxSmallHole(pan);
       showMessage('✨ 進洞了！+' + score + ' 分', 'info');
-      spinSlot(0.08);
+      spinSlot(gameState.isFever ? diff.feverWin : diff.win[type]);
+    } else {
+      // 最外側的洞只加分不轉老虎機，順便提醒往中間打
+      sfxSmallHole(pan);
+      showMessage('✨ 進洞了！+' + score + ' 分（往中間打才會轉老虎機）', 'info');
     }
 
     updateHud();
@@ -2639,6 +2680,8 @@
     themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === save.theme));
     scaleBtns.forEach(b => b.classList.toggle('active', b.dataset.scale === save.uiScale));
     ambBtns.forEach(b => b.classList.toggle('active', b.dataset.amb === save.ambience));
+    difficultyBtns.forEach(b => b.classList.toggle('active', b.dataset.difficulty === save.difficulty));
+    difficultyHintEl.textContent = difficulty().hint;
   }
 
   // 畫面縮放：「自動」會依視窗大小算出剛好塞滿畫面的倍率（雙欄時連高度一起考慮，發射鈕不用捲動）
@@ -2683,6 +2726,14 @@
       const g = Number(btn.dataset.gravity);
       save.gravity = g;
       engine.gravity.y = g;
+      syncSettingButtons();
+      persist();
+    });
+  });
+  difficultyBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      save.difficulty = btn.dataset.difficulty;
+      updateGuarantee();
       syncSettingButtons();
       persist();
     });
