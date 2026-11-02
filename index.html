@@ -308,6 +308,7 @@
     font-size: calc(12px * var(--fs));
     color: var(--text-muted);
   }
+  #holdText { min-width: 7em; text-align: right; }
   #holdDots i {
     width: 14px; height: 14px;
     border-radius: 50%;
@@ -905,7 +906,7 @@
       <div class="reel"><span class="sym">🍋</span></div>
       <div class="reel"><span class="sym">⭐</span></div>
     </div>
-    <div id="holdDots" aria-label="還有幾次等著轉"><span>待轉</span><i></i><i></i><i></i><i></i></div>
+    <div id="holdDots" aria-label="還有幾次等著轉"><span id="holdText"></span><i></i><i></i><i></i><i></i></div>
     <div id="guarantee">
       <div class="gbar"><i id="guaranteeFill"></i></div>
       <span id="guaranteeText"></span>
@@ -921,9 +922,9 @@
 
   <div id="dock">
     <div id="powerRow">
-      <label for="powerSlider">力道</label>
+      <label for="powerSlider">發射方向</label>
       <input type="range" class="range" id="powerSlider" min="0" max="100" value="50">
-      <span id="powerValue">50</span>
+      <span id="powerValue">中間</span>
     </div>
     <button class="btn3d" id="launchBtn"><span>🚀 發射</span><small>每顆 5 籌碼・按住可連發</small></button>
   </div>
@@ -1214,6 +1215,7 @@
   const launchBtn = $('launchBtn');
   const powerSlider = $('powerSlider');
   const powerValueEl = $('powerValue');
+  const holdTextEl = $('holdText');
   const soundBtn = $('soundBtn');
   const musicBtn = $('musicBtn');
   const statsBtn = $('statsBtn');
@@ -2050,7 +2052,7 @@
   }
 
   function spawnXForPower(power) {
-    return 340 - (power / 100) * 260;
+    return 80 + (power / 100) * 260; // 往右拉，彈珠就從右邊掉下
   }
   function spawnBall(power) {
     const spawnX = spawnXForPower(power) + (Math.random() * 10 - 5);
@@ -2081,6 +2083,7 @@
   const MAX_HOLD = 4; // 轉動中又入洞時先「保留」，轉完依序補轉（仿真實機台）
   const holdQueue = [];
   let slotSpinning = false;
+  let currentSpin = null; // 目前這一轉的識別物，收尾後清成 null
 
   function countSymbol(arr, sym) { return arr.filter(s => s === sym).length; }
   function isSpecialPattern(arr) {
@@ -2150,6 +2153,7 @@
 
   const HEAT_CLASSES = ['heat-blue', 'heat-green', 'heat-red', 'heat-rainbow'];
   function renderHoldDots() {
+    holdTextEl.textContent = holdQueue.length ? '還會再轉 ' + holdQueue.length + ' 次' : '';
     holdDotEls.forEach((d, i) => {
       const spin = holdQueue[i];
       d.classList.toggle('on', !!spin);
@@ -2228,6 +2232,8 @@
       heat = 'rainbow';
     }
     slotSpinning = true;
+    const spinToken = {};
+    currentSpin = spinToken;
     slotMachineEl.classList.remove('win');
     slotMachineEl.classList.add('focus');
     slotMachineEl.dataset.heat = heat;
@@ -2239,6 +2245,16 @@
     const stopDelays = [600, 1000, 1400];
 
     const spinIntervals = [];
+    // 保險：萬一哪個步驟沒接上（例如背景分頁計時被打亂），20 秒後強制收尾，老虎機不會卡死
+    setTimeout(() => {
+      if (currentSpin !== spinToken) return;
+      spinIntervals.forEach(clearInterval);
+      reelEls.forEach((el, i) => { el.classList.remove('spinning', 'reach'); symEls[i].textContent = result[i]; });
+      pushAction = null;
+      clearTimeout(pushTimer);
+      pushBtn.hidden = true;
+      finishSpin(result, spinToken);
+    }, 20000);
     reelEls.forEach((el, i) => {
       el.classList.remove('land', 'reach');
       el.classList.add('spinning');
@@ -2259,7 +2275,7 @@
         sfxReach();
         setTimeout(() => showPushButton(() => stopReel(2)), 500);
       }
-      if (i === reelEls.length - 1) finishSpin(result);
+      if (i === reelEls.length - 1) finishSpin(result, spinToken);
     }
     reelEls.forEach((el, i) => {
       if (i === 2 && reach) return; // 第三格交給「按我！」按鈕
@@ -2267,7 +2283,9 @@
     });
   }
 
-  function finishSpin(result) {
+  function finishSpin(result, token) {
+    if (currentSpin !== token) return; // 這一轉已經收尾過了（或已被新的一轉取代）
+    currentSpin = null;
     const sevenCount = countSymbol(result, '7️⃣');
     const cherryCount = countSymbol(result, '🍒');
     let isWin = true;
@@ -2667,8 +2685,11 @@
   function syncRangeFill(slider) {
     slider.style.setProperty('--pct', slider.value + '%');
   }
+  function powerLabel(v) {
+    return v < 35 ? '偏左' : v > 65 ? '偏右' : '中間';
+  }
   powerSlider.addEventListener('input', () => {
-    powerValueEl.textContent = powerSlider.value;
+    powerValueEl.textContent = powerLabel(Number(powerSlider.value));
     syncRangeFill(powerSlider);
   });
   syncRangeFill(powerSlider);
@@ -3107,7 +3128,9 @@
         b.trail.push({ x: b.position.x, y: b.position.y });
         if (b.trail.length > TRAIL_LENGTH) b.trail.shift();
       }
-      if (b.position.y > CANVAS_H + 20) {
+      if (!Number.isFinite(b.position.x) || !Number.isFinite(b.position.y)) {
+        removeBall(b);
+      } else if (b.position.y > CANVAS_H + 20) {
         if (!b.scored) showMessage('可惜，掉出去了，再接再厲！', 'miss');
         removeBall(b);
       } else if (now - b.spawnTime > BALL_MAX_AGE) {
@@ -3140,16 +3163,22 @@
     stepAcc += Math.min(now - lastFrame, 100);
     lastFrame = now;
     let n = 0;
-    // 容許 1ms 誤差，避免 60Hz 螢幕因計時抖動一下跑 0 步一下跑 2 步
-    while (stepAcc >= STEP_MS - 1 && n < 5) {
-      physicsStep();
-      stepAcc -= STEP_MS;
-      n++;
+    // 任何一步出錯都不能讓整個遊戲停格：吃掉錯誤、下一個畫面繼續跑
+    try {
+      // 容許 1ms 誤差，避免 60Hz 螢幕因計時抖動一下跑 0 步一下跑 2 步
+      while (stepAcc >= STEP_MS - 1 && n < 5) {
+        physicsStep();
+        stepAcc -= STEP_MS;
+        n++;
+      }
+      if (n === 5) stepAcc = 0;
+      tickHud();
+      updateFeverBanner();
+      render();
+    } catch (err) {
+      console.error(err);
+      stepAcc = 0;
     }
-    if (n === 5) stepAcc = 0;
-    tickHud();
-    updateFeverBanner();
-    render();
     requestAnimationFrame(loop);
   }
 
@@ -3195,7 +3224,7 @@
     ctx2d.restore();
   }
 
-  // 落點提示：依目前力道在上方顯示彈珠會從哪裡掉下
+  // 落點提示：依目前發射方向在上方顯示彈珠會從哪裡掉下
   function drawDropIndicator(t) {
     const x = spawnXForPower(Number(powerSlider.value));
     const a = reduceMotion ? 0.8 : 0.6 + 0.3 * Math.sin(frameCount * 0.08);
